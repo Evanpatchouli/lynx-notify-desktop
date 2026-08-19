@@ -11,6 +11,13 @@
 #include <cmath>
 #include <unordered_map>
 
+namespace {
+
+constexpr int kNotificationCardHeight = 104;
+constexpr int kNotificationStackOffset = 16;
+
+}  // namespace
+
 TaskEngine::TaskEngine(std::filesystem::path state_path) : state_path_(std::move(state_path)) {}
 
 TaskEngine::~TaskEngine() { Stop(); }
@@ -137,22 +144,32 @@ bool TaskEngine::DismissNotification(const std::string& id) {
   return cards_.size() != before;
 }
 
-bool TaskEngine::IsNotificationClosePoint(int x, int y, int width, int height, double scale) const {
-  if (width <= 0 || height <= 0) return false;
+bool TaskEngine::DismissNotificationAtPoint(int x, int y, int width, int height, double scale) {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (cards_.empty()) return false;
+  const int index = FindNotificationCloseIndexLocked(x, y, width, height, scale);
+  if (index < 0) return false;
+  cards_.erase(cards_.begin() + index);
+  return true;
+}
+
+bool TaskEngine::IsNotificationClosePoint(int x, int y, int width, int height, double scale) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return FindNotificationCloseIndexLocked(x, y, width, height, scale) >= 0;
+}
+
+int TaskEngine::FindNotificationCloseIndexLocked(
+    int x, int y, int width, int height, double scale) const {
+  if (width <= 0 || height <= 0 || cards_.empty()) return -1;
 
   scale = scale > 0 ? scale : 1.0;
   const auto pixels = [scale](double value) {
     return std::max(1, static_cast<int>(std::lround(value * scale)));
   };
   const int padding = pixels(26);
-  const int card_height = pixels(104);
+  const int card_height = pixels(kNotificationCardHeight);
   const int card_width = pixels(settings_.card_width);
-  const int gap = pixels(settings_.gap);
-  const int stack_gap = cards_.size() > 1 ? gap : 0;
-  const int stack_height = static_cast<int>(cards_.size()) * card_height +
-                           static_cast<int>(cards_.size() - 1) * stack_gap;
+  const int stack_offset = pixels(kNotificationStackOffset);
+  const int stack_height = card_height + static_cast<int>(cards_.size() - 1) * stack_offset;
   const bool bottom = settings_.position.rfind("bottom-", 0) == 0;
   const bool right = settings_.position == "top-right" || settings_.position == "bottom-right";
   const bool center = settings_.position == "center";
@@ -165,11 +182,11 @@ bool TaskEngine::IsNotificationClosePoint(int x, int y, int width, int height, d
   }
 
   for (size_t index = 0; index < cards_.size(); ++index) {
-    int card_top = padding + static_cast<int>(index) * (card_height + stack_gap);
+    int card_top = padding + static_cast<int>(index) * stack_offset;
     if (bottom) {
-      card_top = height - padding - card_height - static_cast<int>(index) * (card_height + stack_gap);
+      card_top = height - padding - card_height - static_cast<int>(index) * stack_offset;
     } else if (center) {
-      card_top = (height - stack_height) / 2 + static_cast<int>(index) * (card_height + stack_gap);
+      card_top = (height - stack_height) / 2 + static_cast<int>(index) * stack_offset;
     }
 
     // Match the close button's top-right area while keeping the rest of the
@@ -178,9 +195,11 @@ bool TaskEngine::IsNotificationClosePoint(int x, int y, int width, int height, d
     const int close_right = card_left + card_width - pixels(2);
     const int close_top = card_top + pixels(4);
     const int close_bottom = card_top + pixels(50);
-    if (x >= close_left && x <= close_right && y >= close_top && y <= close_bottom) return true;
+    if (x >= close_left && x <= close_right && y >= close_top && y <= close_bottom) {
+      return static_cast<int>(index);
+    }
   }
-  return false;
+  return -1;
 }
 
 void TaskEngine::WorkerLoop() {

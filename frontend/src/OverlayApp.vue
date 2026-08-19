@@ -5,9 +5,19 @@ import type { OverlayState } from './types';
 
 const overlay = ref<OverlayState>(hostBridge.getOverlayState());
 let timer: ReturnType<typeof setInterval> | undefined;
+const CARD_HEIGHT = 104;
+const STACK_OFFSET = 16;
 
 const positionClass = computed(() => `position-${overlay.value.settings.position}`);
 const isBottom = computed(() => overlay.value.settings.position.startsWith('bottom'));
+const stackHeight = computed(() => {
+  const cardCount = overlay.value.cards.length;
+  return CARD_HEIGHT + Math.max(0, cardCount - 1) * STACK_OFFSET;
+});
+const stackStyle = computed((): Record<string, string | number> => ({
+  width: `${overlay.value.settings.cardWidth}px`,
+  height: `${stackHeight.value}px`,
+}));
 
 function refresh() {
   overlay.value = hostBridge.getOverlayState();
@@ -26,12 +36,16 @@ function timeLabel(ms: number) {
 }
 
 function cardStyle(index: number): Record<string, string | number> {
-  const lastCard = index === overlay.value.cards.length - 1;
-  const spacing = lastCard ? 0 : overlay.value.settings.gap;
+  const cardCount = overlay.value.cards.length;
+  const depth = isBottom.value ? cardCount - 1 - index : index;
   return {
     width: `${overlay.value.settings.cardWidth}px`,
+    height: `${CARD_HEIGHT}px`,
     opacity: overlay.value.settings.opacity,
-    [isBottom.value ? 'marginTop' : 'marginBottom']: `${spacing}px`,
+    position: 'absolute',
+    left: 0,
+    top: `${depth * STACK_OFFSET}px`,
+    zIndex: cardCount - index,
   };
 }
 
@@ -47,7 +61,7 @@ onUnmounted(() => {
 
 <template>
   <view :class="['overlay-screen', positionClass]">
-    <view :class="['notification-stack', isBottom ? 'bottom-stack' : '']">
+    <view class="notification-stack" :style="stackStyle">
       <view
         v-for="(card, index) in overlay.cards"
         :key="card.id"
@@ -84,9 +98,8 @@ onUnmounted(() => {
 .position-center { align-items: center; justify-content: center; }
 .position-bottom-left { align-items: flex-end; justify-content: flex-start; }
 .position-bottom-right { align-items: flex-end; justify-content: flex-end; }
-.notification-stack { display: flex; flex-direction: column; align-items: stretch; }
-.notification-stack.bottom-stack { flex-direction: column-reverse; }
-.notification-card { height: 104px; min-height: 104px; flex-shrink: 0; border-radius: 18px; overflow: hidden; display: flex; flex-direction: row; border: 1px solid rgba(255,255,255,0.68); box-shadow: 0 18px 45px rgba(15, 18, 30, 0.22); transform: translateY(0); }
+.notification-stack { position: relative; flex-shrink: 0; overflow: visible; }
+.notification-card { position: absolute; left: 0; top: 0; height: 104px; min-height: 104px; border-radius: 18px; overflow: hidden; display: flex; flex-direction: row; border: 1px solid rgba(255,255,255,0.68); box-shadow: 0 18px 45px rgba(15, 18, 30, 0.22); }
 .notification-card.solid { background-color: #fdfdfe; }
 .notification-card.glass { background-color: rgba(239, 242, 248, 0.82); }
 .notification-card.newest { box-shadow: 0 20px 50px rgba(17, 20, 34, 0.27); }

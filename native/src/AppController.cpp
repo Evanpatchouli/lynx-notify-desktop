@@ -80,7 +80,8 @@ bool AppController::CreateWindows(HINSTANCE instance, int show_command) {
           virtual_width,
           virtual_height,
           {},
-          [this](HWND hwnd, POINT point) { return IsOverlayInteractivePoint(hwnd, point); })) {
+          [this](HWND hwnd, POINT point) { return IsOverlayInteractivePoint(hwnd, point); },
+          [this](HWND hwnd, POINT point) { return DismissOverlayPoint(hwnd, point); })) {
     return false;
   }
 
@@ -99,6 +100,14 @@ bool AppController::IsOverlayInteractivePoint(HWND hwnd, POINT point) const {
   const UINT dpi = GetDpiForWindow(hwnd);
   const double scale = dpi > 0 ? static_cast<double>(dpi) / 96.0 : 1.0;
   return engine_.IsNotificationClosePoint(point.x, point.y, client.right, client.bottom, scale);
+}
+
+bool AppController::DismissOverlayPoint(HWND hwnd, POINT point) {
+  RECT client{};
+  if (!GetClientRect(hwnd, &client)) return false;
+  const UINT dpi = GetDpiForWindow(hwnd);
+  const double scale = dpi > 0 ? static_cast<double>(dpi) / 96.0 : 1.0;
+  return engine_.DismissNotificationAtPoint(point.x, point.y, client.right, client.bottom, scale);
 }
 
 void AppController::WindowCommand(const std::string& command) {

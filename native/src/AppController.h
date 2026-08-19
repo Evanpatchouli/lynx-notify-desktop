@@ -45,6 +45,7 @@ class AppController {
   void RemoveTrayIcon();
   std::optional<LRESULT> HandlePanelMessage(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param);
   bool IsOverlayInteractivePoint(HWND hwnd, POINT point) const;
+  bool DismissOverlayPoint(HWND hwnd, POINT point);
   void ShowTrayMenu(HWND hwnd);
 };
 

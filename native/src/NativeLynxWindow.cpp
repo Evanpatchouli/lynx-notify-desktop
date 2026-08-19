@@ -44,16 +44,20 @@ bool NativeLynxWindow::Create(
     int width,
     int height,
     MessageHook hook,
-    HitTestHook hit_test) {
+    HitTestHook hit_test,
+    ClickHook click) {
   kind_ = kind;
   message_hook_ = std::move(hook);
   hit_test_hook_ = std::move(hit_test);
+  click_hook_ = std::move(click);
   if (!EnsureClass(instance)) return false;
 
   DWORD ex_style = WS_EX_APPWINDOW;
   DWORD style = WS_POPUP;
   if (kind == Kind::Overlay) {
-    ex_style = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_LAYERED | WS_EX_TRANSPARENT;
+    // Keep the overlay in hit testing so the close regions can be interactive.
+    // Non-card regions return HTTRANSPARENT from the parent/child procedures.
+    ex_style = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_LAYERED;
   }
 
   hwnd_ = CreateWindowExW(
@@ -179,6 +183,12 @@ LRESULT NativeLynxWindow::HandleMessage(UINT message, WPARAM w_param, LPARAM l_p
         return HTTRANSPARENT;
       case WM_MOUSEACTIVATE:
         return MA_NOACTIVATE;
+      case WM_LBUTTONUP:
+        if (click_hook_) {
+          POINT point{GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param)};
+          if (click_hook_(hwnd_, point)) return 0;
+        }
+        break;
       case WM_ERASEBKGND:
         return 1;
       case WM_CLOSE:
@@ -227,6 +237,13 @@ bool NativeLynxWindow::ToParentClientPoint(HWND child, LPARAM l_param, POINT* po
   return ScreenToClient(hwnd_, point) != FALSE;
 }
 
+bool NativeLynxWindow::ToParentClientPointFromScreen(LPARAM l_param, POINT* point) const {
+  if (!point || !hwnd_) return false;
+  point->x = GET_X_LPARAM(l_param);
+  point->y = GET_Y_LPARAM(l_param);
+  return ScreenToClient(hwnd_, point) != FALSE;
+}
+
 bool NativeLynxWindow::IsPanelTitleBarPoint(POINT point) const {
   if (kind_ != Kind::Panel || !hwnd_) return false;
 
@@ -240,17 +257,39 @@ bool NativeLynxWindow::IsPanelTitleBarPoint(POINT point) const {
 }
 
 std::optional<LRESULT> NativeLynxWindow::HandleLynxMessage(
-    HWND hwnd, UINT message, WPARAM /*w_param*/, LPARAM l_param) {
+    HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param) {
   if (kind_ == Kind::Panel) {
     if (message == WM_LBUTTONDOWN || message == WM_LBUTTONDBLCLK) {
       POINT point{};
       if (ToParentClientPoint(hwnd, l_param, &point) && IsPanelTitleBarPoint(point)) {
-        // The Lynx view is the actual mouse target. Forward the caption gesture
-        // to the host window so Windows moves the panel instead of the child.
-        ReleaseCapture();
-        SendMessageW(hwnd_, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+        GetCursorPos(&drag_start_screen_);
+        if (GetWindowRect(hwnd_, &drag_start_window_)) {
+          dragging_ = true;
+          SetCapture(hwnd);
+        }
         return 0;
       }
+    } else if (message == WM_MOUSEMOVE && dragging_ && (w_param & MK_LBUTTON)) {
+      POINT point{};
+      if (GetCursorPos(&point)) {
+        const int x = drag_start_window_.left + point.x - drag_start_screen_.x;
+        const int y = drag_start_window_.top + point.y - drag_start_screen_.y;
+        SetWindowPos(
+            hwnd_,
+            nullptr,
+            x,
+            y,
+            0,
+            0,
+            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+      }
+      return 0;
+    } else if (message == WM_LBUTTONUP && dragging_) {
+      dragging_ = false;
+      ReleaseCapture();
+      return 0;
+    } else if (message == WM_CAPTURECHANGED) {
+      dragging_ = false;
     } else if (message == WM_SETCURSOR) {
       POINT point{};
       if (GetCursorPos(&point) && ScreenToClient(hwnd, &point) && IsPanelTitleBarPoint(point)) {
@@ -261,13 +300,17 @@ std::optional<LRESULT> NativeLynxWindow::HandleLynxMessage(
   } else if (kind_ == Kind::Overlay) {
     if (message == WM_NCHITTEST) {
       POINT point{};
-      if (ToParentClientPoint(hwnd, l_param, &point) && hit_test_hook_ &&
+      if (ToParentClientPointFromScreen(l_param, &point) && hit_test_hook_ &&
           hit_test_hook_(hwnd_, point)) {
         return HTCLIENT;
       }
       return HTTRANSPARENT;
     }
     if (message == WM_MOUSEACTIVATE) return MA_NOACTIVATE;
+    if (message == WM_LBUTTONUP && click_hook_) {
+      POINT point{};
+      if (ToParentClientPoint(hwnd, l_param, &point) && click_hook_(hwnd_, point)) return 0;
+    }
   }
   return std::nullopt;
 }

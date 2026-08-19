@@ -26,6 +26,7 @@ class TaskEngine {
   bool UpdateSettingsJson(const std::string& settings_json);
   bool PreviewNotificationJson(const std::string& payload_json);
   bool DismissNotification(const std::string& id);
+  bool DismissNotificationAtPoint(int x, int y, int width, int height, double scale);
   bool IsNotificationClosePoint(int x, int y, int width, int height, double scale) const;
 
  private:
@@ -47,5 +48,6 @@ class TaskEngine {
   std::string NewIdLocked(const char* prefix, int64_t now_ms);
   void SaveLocked() const;
   mini_json::Value BuildStateJsonLocked() const;
+  int FindNotificationCloseIndexLocked(int x, int y, int width, int height, double scale) const;
   static std::string GetString(const mini_json::Value& value, const char* key, const std::string& fallback = {});
 };

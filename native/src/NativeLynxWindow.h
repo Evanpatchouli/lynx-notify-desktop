@@ -17,6 +17,7 @@ class NativeLynxWindow {
   enum class Kind { Panel, Overlay };
   using MessageHook = std::function<std::optional<LRESULT>(HWND, UINT, WPARAM, LPARAM)>;
   using HitTestHook = std::function<bool(HWND, POINT)>;
+  using ClickHook = std::function<bool(HWND, POINT)>;
   using LynxViewPtr = decltype(std::declval<lynx::pub::LynxView::Builder>().Build());
 
   NativeLynxWindow() = default;
@@ -33,7 +34,8 @@ class NativeLynxWindow {
       int width,
       int height,
       MessageHook hook = {},
-      HitTestHook hit_test = {});
+      HitTestHook hit_test = {},
+      ClickHook click = {});
   bool LoadBundle(const std::filesystem::path& bundle_path);
   void Show(int command = SW_SHOWNORMAL);
   void Hide();
@@ -58,12 +60,17 @@ class NativeLynxWindow {
   std::optional<LRESULT> HandleLynxMessage(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param);
   bool IsPanelTitleBarPoint(POINT point) const;
   bool ToParentClientPoint(HWND child, LPARAM l_param, POINT* point) const;
+  bool ToParentClientPointFromScreen(LPARAM l_param, POINT* point) const;
 
   HWND hwnd_ = nullptr;
   HWND lynx_hwnd_ = nullptr;
+  bool dragging_ = false;
+  POINT drag_start_screen_{};
+  RECT drag_start_window_{};
   Kind kind_ = Kind::Panel;
   MessageHook message_hook_;
   HitTestHook hit_test_hook_;
+  ClickHook click_hook_;
   LynxViewPtr lynx_view_{};
 };
 
