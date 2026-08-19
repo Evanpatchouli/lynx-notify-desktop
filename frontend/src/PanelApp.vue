@@ -502,7 +502,7 @@ function nav(target: 'home' | 'settings') {
 
 <style>
 * { box-sizing: border-box; }
-.app-shell { width: 100vw; height: 100vh; background-color: #f5f6f8; display: flex; flex-direction: column; color: #17191f; }
+.app-shell { width: 100vw; height: 100vh; background-color: #f5f6f8; display: flex; flex-direction: column; color: #17191f; border-radius: 15px; }
 .titlebar { height: 46px; flex-shrink: 0; display: flex; flex-direction: row; align-items: center; justify-content: space-between; background-color: #fbfbfc; border-bottom: 1px solid #e9e9ed; }
 .drag-zone { height: 46px; flex: 1; display: flex; flex-direction: row; align-items: center; padding-left: 15px; cursor: move; }
 .brand-mark { width: 22px; height: 22px; border-radius: 7px; background-color: #6757e8; display: flex; align-items: center; justify-content: center; }
@@ -520,7 +520,7 @@ function nav(target: 'home' | 'settings') {
 .primary-button { height: 42px; border-radius: 13px; padding: 0 18px; display: flex; align-items: center; justify-content: center; background-color: #6757e8; cursor: pointer; box-shadow: 0 7px 18px rgba(103, 87, 232, 0.22); }
 .primary-button.compact { height: 38px; padding: 0 14px; margin-top: 3px; }
 .primary-button.full { width: 100%; margin-top: 22px; }
-.primary-button-text { color: #ffffff; font-size: 13px; font-weight: 600; }
+.primary-button-text { color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;  }
 .task-list, .settings-scroll, .editor-scroll { flex: 1; min-height: 0; }
 .task-card { background-color: #ffffff; border: 1px solid #e9e9ee; border-radius: 17px; padding: 15px; margin-bottom: 11px; box-shadow: 0 4px 14px rgba(20, 22, 30, 0.04); cursor: pointer; }
 .task-card-top { display: flex; flex-direction: row; align-items: center; justify-content: space-between; }
@@ -547,9 +547,9 @@ function nav(target: 'home' | 'settings') {
 .empty-copy { margin-top: 4px; font-size: 10px; color: #999ba3; }
 .bottom-nav { height: 67px; flex-shrink: 0; display: flex; flex-direction: row; border-top: 1px solid #e6e7eb; background-color: #fbfbfc; }
 .nav-item { flex: 1; align-items: center; justify-content: center; display: flex; flex-direction: column; cursor: pointer; }
-.nav-icon { color: #a0a2aa; font-size: 18px; line-height: 20px; }
+.nav-icon { color: #a0a2aa; font-size: 18px; line-height: 20px; cursor: pointer; }
 .nav-icon.active { color: #6757e8; }
-.nav-label { color: #a0a2aa; font-size: 9px; margin-top: 3px; }
+.nav-label { color: #a0a2aa; font-size: 9px; margin-top: 3px; cursor: pointer; }
 .nav-label.active { color: #6757e8; font-weight: 600; }
 .settings-section { background-color: #ffffff; border: 1px solid #e9e9ee; border-radius: 16px; padding: 15px; margin-bottom: 11px; }
 .section-label { display: block; font-size: 12px; font-weight: 600; color: #3a3c45; margin-bottom: 10px; }
