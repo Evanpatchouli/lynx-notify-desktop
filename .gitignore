@@ -1,0 +1,12 @@
+node_modules/
+dist/
+frontend/dist/
+native/build/
+out/
+output/
+*.user
+*.suo
+*.VC.db
+.DS_Store
+state.json
+.playwright-cli/
