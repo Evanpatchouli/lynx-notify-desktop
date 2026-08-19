@@ -86,7 +86,7 @@ onUnmounted(() => {
 .position-bottom-right { align-items: flex-end; justify-content: flex-end; }
 .notification-stack { display: flex; flex-direction: column; align-items: stretch; }
 .notification-stack.bottom-stack { flex-direction: column-reverse; }
-.notification-card { min-height: 104px; flex-shrink: 0; border-radius: 18px; overflow: hidden; display: flex; flex-direction: row; border: 1px solid rgba(255,255,255,0.68); box-shadow: 0 18px 45px rgba(15, 18, 30, 0.22); transform: translateY(0); }
+.notification-card { height: 104px; min-height: 104px; flex-shrink: 0; border-radius: 18px; overflow: hidden; display: flex; flex-direction: row; border: 1px solid rgba(255,255,255,0.68); box-shadow: 0 18px 45px rgba(15, 18, 30, 0.22); transform: translateY(0); }
 .notification-card.solid { background-color: #fdfdfe; }
 .notification-card.glass { background-color: rgba(239, 242, 248, 0.82); }
 .notification-card.newest { box-shadow: 0 20px 50px rgba(17, 20, 34, 0.27); }

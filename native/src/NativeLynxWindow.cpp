@@ -41,9 +41,11 @@ bool NativeLynxWindow::Create(
     int y,
     int width,
     int height,
-    MessageHook hook) {
+    MessageHook hook,
+    HitTestHook hit_test) {
   kind_ = kind;
   message_hook_ = std::move(hook);
+  hit_test_hook_ = std::move(hit_test);
   if (!EnsureClass(instance)) return false;
 
   DWORD ex_style = WS_EX_APPWINDOW;
@@ -151,9 +153,12 @@ LRESULT NativeLynxWindow::HandleMessage(UINT message, WPARAM w_param, LPARAM l_p
   } else if (kind_ == Kind::Overlay) {
     switch (message) {
       case WM_NCHITTEST:
-        // The close control makes notification cards interactive. Keep the
-        // overlay non-activating while allowing Lynx to receive card taps.
-        return HTCLIENT;
+        if (hit_test_hook_) {
+          POINT point{GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param)};
+          ScreenToClient(hwnd_, &point);
+          if (hit_test_hook_(hwnd_, point)) return HTCLIENT;
+        }
+        return HTTRANSPARENT;
       case WM_MOUSEACTIVATE:
         return MA_NOACTIVATE;
       case WM_ERASEBKGND:

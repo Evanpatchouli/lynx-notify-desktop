@@ -26,6 +26,7 @@ class TaskEngine {
   bool UpdateSettingsJson(const std::string& settings_json);
   bool PreviewNotificationJson(const std::string& payload_json);
   bool DismissNotification(const std::string& id);
+  bool IsNotificationClosePoint(int x, int y, int width, int height, double scale) const;
 
  private:
   std::filesystem::path state_path_;

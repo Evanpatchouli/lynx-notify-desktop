@@ -16,6 +16,7 @@ class NativeLynxWindow {
  public:
   enum class Kind { Panel, Overlay };
   using MessageHook = std::function<std::optional<LRESULT>(HWND, UINT, WPARAM, LPARAM)>;
+  using HitTestHook = std::function<bool(HWND, POINT)>;
   using LynxViewPtr = decltype(std::declval<lynx::pub::LynxView::Builder>().Build());
 
   NativeLynxWindow() = default;
@@ -31,7 +32,8 @@ class NativeLynxWindow {
       int y,
       int width,
       int height,
-      MessageHook hook = {});
+      MessageHook hook = {},
+      HitTestHook hit_test = {});
   bool LoadBundle(const std::filesystem::path& bundle_path);
   void Show(int command = SW_SHOWNORMAL);
   void Hide();
@@ -49,6 +51,7 @@ class NativeLynxWindow {
   HWND hwnd_ = nullptr;
   Kind kind_ = Kind::Panel;
   MessageHook message_hook_;
+  HitTestHook hit_test_hook_;
   LynxViewPtr lynx_view_{};
 };
 
