@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
 class NativeLynxWindow {
  public:
@@ -40,6 +41,9 @@ class NativeLynxWindow {
   void Show(int command = SW_SHOWNORMAL);
   void Hide();
   void Destroy();
+
+  // Restrict overlay hit testing and painting to the supplied client regions.
+  void SetInteractiveRegion(const std::vector<RECT>& rectangles);
 
   HWND hwnd() const { return hwnd_; }
   Kind kind() const { return kind_; }
@@ -71,6 +75,10 @@ class NativeLynxWindow {
   MessageHook message_hook_;
   HitTestHook hit_test_hook_;
   ClickHook click_hook_;
+  std::vector<RECT> interactive_region_rects_;
+  bool interactive_region_initialized_ = false;
+  int interactive_region_width_ = 0;
+  int interactive_region_height_ = 0;
   LynxViewPtr lynx_view_{};
 };
 

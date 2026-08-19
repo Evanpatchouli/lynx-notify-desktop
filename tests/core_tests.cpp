@@ -60,8 +60,18 @@ int main() {
     const auto saved = mini_json::Parse(engine.UpsertTaskJson(task));
     assert(!saved.At("id").AsString().empty());
     assert(engine.PreviewNotificationJson(R"({"title":"preview","body":"hello"})"));
+    assert(engine.PreviewNotificationJson(R"({"title":"preview 2","body":"hello 2"})"));
+    assert(engine.PreviewNotificationJson(R"({"title":"preview 3","body":"hello 3"})"));
     const auto overlay = mini_json::Parse(engine.GetOverlayStateJson());
-    assert(overlay.At("cards").AsArray().size() == 1);
+    assert(overlay.At("cards").AsArray().size() == 3);
+    const auto card_rects = engine.GetNotificationCardRects(1920, 1080, 1.0);
+    assert(card_rects.size() == 3);
+    assert(card_rects[0].left == 1554);
+    assert(card_rects[0].top == 26);
+    assert(card_rects[1].top == 42);
+    assert(card_rects[2].top == 58);
+    assert(card_rects[0].right == 1894);
+    assert(card_rects[0].bottom == 130);
     std::filesystem::remove(path, ec);
   }
 

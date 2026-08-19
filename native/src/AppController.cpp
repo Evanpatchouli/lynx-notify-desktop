@@ -11,10 +11,12 @@
 
 #include <algorithm>
 #include <array>
+#include <vector>
 
 AppController::AppController() : engine_(storage::DefaultStatePath()) {}
 
 AppController::~AppController() {
+  if (overlay_.hwnd()) KillTimer(overlay_.hwnd(), kOverlayRegionTimerId);
   RemoveTrayIcon();
   engine_.Stop();
 }
@@ -79,7 +81,9 @@ bool AppController::CreateWindows(HINSTANCE instance, int show_command) {
           virtual_y,
           virtual_width,
           virtual_height,
-          {},
+          [this](HWND hwnd, UINT message, WPARAM w, LPARAM l) {
+            return HandleOverlayMessage(hwnd, message, w, l);
+          },
           [this](HWND hwnd, POINT point) { return IsOverlayInteractivePoint(hwnd, point); },
           [this](HWND hwnd, POINT point) { return DismissOverlayPoint(hwnd, point); })) {
     return false;
@@ -89,9 +93,36 @@ bool AppController::CreateWindows(HINSTANCE instance, int show_command) {
   if (!panel_.LoadBundle(bundles / L"panel.lynx.bundle")) return false;
   if (!overlay_.LoadBundle(bundles / L"overlay.lynx.bundle")) return false;
 
+  UpdateOverlayRegion();
+  if (!SetTimer(overlay_.hwnd(), kOverlayRegionTimerId, 120, nullptr)) return false;
   overlay_.Show(SW_SHOWNOACTIVATE);
   panel_.Show(show_command == SW_HIDE ? SW_SHOWNORMAL : show_command);
   return true;
+}
+
+void AppController::UpdateOverlayRegion() {
+  if (!overlay_.hwnd()) return;
+
+  RECT client{};
+  if (!GetClientRect(overlay_.hwnd(), &client)) return;
+  const int width = client.right - client.left;
+  const int height = client.bottom - client.top;
+  const UINT dpi = GetDpiForWindow(overlay_.hwnd());
+  const double scale = dpi > 0 ? static_cast<double>(dpi) / 96.0 : 1.0;
+  const int shadow_margin = std::max(1, MulDiv(28, static_cast<int>(dpi), 96));
+
+  const auto card_rects = engine_.GetNotificationCardRects(width, height, scale);
+  std::vector<RECT> region_rects;
+  region_rects.reserve(card_rects.size());
+  for (const auto& card : card_rects) {
+    region_rects.push_back({
+        card.left - shadow_margin,
+        card.top - shadow_margin,
+        card.right + shadow_margin,
+        card.bottom + shadow_margin,
+    });
+  }
+  overlay_.SetInteractiveRegion(region_rects);
 }
 
 bool AppController::IsOverlayInteractivePoint(HWND hwnd, POINT point) const {
@@ -155,6 +186,15 @@ std::optional<LRESULT> AppController::HandlePanelMessage(
     ShowTrayMenu(hwnd);
   }
   return 0;
+}
+
+std::optional<LRESULT> AppController::HandleOverlayMessage(
+    HWND, UINT message, WPARAM w_param, LPARAM) {
+  if (message == WM_TIMER && w_param == kOverlayRegionTimerId) {
+    UpdateOverlayRegion();
+    return 0;
+  }
+  return std::nullopt;
 }
 
 void AppController::ShowTrayMenu(HWND hwnd) {

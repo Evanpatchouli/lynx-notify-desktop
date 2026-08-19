@@ -9,6 +9,13 @@
 #include <thread>
 #include <vector>
 
+struct NotificationCardRect {
+  int left = 0;
+  int top = 0;
+  int right = 0;
+  int bottom = 0;
+};
+
 class TaskEngine {
  public:
   explicit TaskEngine(std::filesystem::path state_path);
@@ -28,6 +35,7 @@ class TaskEngine {
   bool DismissNotification(const std::string& id);
   bool DismissNotificationAtPoint(int x, int y, int width, int height, double scale);
   bool IsNotificationClosePoint(int x, int y, int width, int height, double scale) const;
+  std::vector<NotificationCardRect> GetNotificationCardRects(int width, int height, double scale) const;
 
  private:
   std::filesystem::path state_path_;
@@ -48,6 +56,8 @@ class TaskEngine {
   std::string NewIdLocked(const char* prefix, int64_t now_ms);
   void SaveLocked() const;
   mini_json::Value BuildStateJsonLocked() const;
+  std::vector<NotificationCardRect> BuildNotificationCardRectsLocked(
+      int width, int height, double scale) const;
   int FindNotificationCloseIndexLocked(int x, int y, int width, int height, double scale) const;
   static std::string GetString(const mini_json::Value& value, const char* key, const std::string& fallback = {});
 };

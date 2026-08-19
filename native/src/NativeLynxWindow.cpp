@@ -8,6 +8,7 @@
 
 #include "resource.h"
 
+#include <algorithm>
 #include <string>
 
 #pragma comment(lib, "dwmapi.lib")
@@ -122,12 +123,73 @@ void NativeLynxWindow::Hide() {
   if (hwnd_) ShowWindow(hwnd_, SW_HIDE);
 }
 
+void NativeLynxWindow::SetInteractiveRegion(const std::vector<RECT>& rectangles) {
+  if (!hwnd_ || kind_ != Kind::Overlay) return;
+
+  RECT client{};
+  if (!GetClientRect(hwnd_, &client)) return;
+  const int client_width = client.right - client.left;
+  const int client_height = client.bottom - client.top;
+  const auto same_rectangles = [&]() {
+    if (!interactive_region_initialized_ || interactive_region_width_ != client_width ||
+        interactive_region_height_ != client_height) {
+      return false;
+    }
+    if (interactive_region_rects_.size() != rectangles.size()) return false;
+    for (size_t index = 0; index < rectangles.size(); ++index) {
+      const RECT& current = interactive_region_rects_[index];
+      const RECT& next = rectangles[index];
+      if (current.left != next.left || current.top != next.top || current.right != next.right ||
+          current.bottom != next.bottom) {
+        return false;
+      }
+    }
+    return true;
+  };
+  if (same_rectangles()) return;
+
+  HRGN region = CreateRectRgn(0, 0, 0, 0);
+  if (!region) return;
+
+  for (const RECT& source : rectangles) {
+    RECT clipped{
+        std::max(client.left, std::min(source.left, client.right)),
+        std::max(client.top, std::min(source.top, client.bottom)),
+        std::max(client.left, std::min(source.right, client.right)),
+        std::max(client.top, std::min(source.bottom, client.bottom)),
+    };
+    if (clipped.right <= clipped.left || clipped.bottom <= clipped.top) continue;
+
+    HRGN part = CreateRectRgn(clipped.left, clipped.top, clipped.right, clipped.bottom);
+    if (!part) continue;
+    const int combine_result = CombineRgn(region, region, part, RGN_OR);
+    DeleteObject(part);
+    if (combine_result == ERROR) {
+      DeleteObject(region);
+      return;
+    }
+  }
+
+  if (!SetWindowRgn(hwnd_, region, TRUE)) {
+    DeleteObject(region);
+    return;
+  }
+  interactive_region_rects_ = rectangles;
+  interactive_region_initialized_ = true;
+  interactive_region_width_ = client_width;
+  interactive_region_height_ = client_height;
+}
+
 void NativeLynxWindow::Destroy() {
   if (lynx_hwnd_ && IsWindow(lynx_hwnd_)) {
     RemoveWindowSubclass(lynx_hwnd_, &NativeLynxWindow::LynxWindowProc, kLynxSubclassId);
   }
   lynx_hwnd_ = nullptr;
   lynx_view_ = {};
+  interactive_region_rects_.clear();
+  interactive_region_initialized_ = false;
+  interactive_region_width_ = 0;
+  interactive_region_height_ = 0;
   if (hwnd_) {
     DestroyWindow(hwnd_);
     hwnd_ = nullptr;

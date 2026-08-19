@@ -157,9 +157,15 @@ bool TaskEngine::IsNotificationClosePoint(int x, int y, int width, int height, d
   return FindNotificationCloseIndexLocked(x, y, width, height, scale) >= 0;
 }
 
-int TaskEngine::FindNotificationCloseIndexLocked(
-    int x, int y, int width, int height, double scale) const {
-  if (width <= 0 || height <= 0 || cards_.empty()) return -1;
+std::vector<NotificationCardRect> TaskEngine::GetNotificationCardRects(
+    int width, int height, double scale) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return BuildNotificationCardRectsLocked(width, height, scale);
+}
+
+std::vector<NotificationCardRect> TaskEngine::BuildNotificationCardRectsLocked(
+    int width, int height, double scale) const {
+  if (width <= 0 || height <= 0 || cards_.empty()) return {};
 
   scale = scale > 0 ? scale : 1.0;
   const auto pixels = [scale](double value) {
@@ -181,6 +187,8 @@ int TaskEngine::FindNotificationCloseIndexLocked(
     card_left = width - padding - card_width;
   }
 
+  std::vector<NotificationCardRect> rects;
+  rects.reserve(cards_.size());
   for (size_t index = 0; index < cards_.size(); ++index) {
     int card_top = padding + static_cast<int>(index) * stack_offset;
     if (bottom) {
@@ -188,13 +196,27 @@ int TaskEngine::FindNotificationCloseIndexLocked(
     } else if (center) {
       card_top = (height - stack_height) / 2 + static_cast<int>(index) * stack_offset;
     }
+    rects.push_back({card_left, card_top, card_left + card_width, card_top + card_height});
+  }
+  return rects;
+}
+
+int TaskEngine::FindNotificationCloseIndexLocked(
+    int x, int y, int width, int height, double scale) const {
+  scale = scale > 0 ? scale : 1.0;
+  const auto pixels = [scale](double value) {
+    return std::max(1, static_cast<int>(std::lround(value * scale)));
+  };
+  const auto card_rects = BuildNotificationCardRectsLocked(width, height, scale);
+  for (size_t index = 0; index < card_rects.size(); ++index) {
+    const auto& card = card_rects[index];
 
     // Match the close button's top-right area while keeping the rest of the
     // virtual-screen overlay click-through.
-    const int close_left = card_left + card_width - pixels(56);
-    const int close_right = card_left + card_width - pixels(2);
-    const int close_top = card_top + pixels(4);
-    const int close_bottom = card_top + pixels(50);
+    const int close_left = card.right - pixels(56);
+    const int close_right = card.right - pixels(2);
+    const int close_top = card.top + pixels(4);
+    const int close_bottom = card.top + pixels(50);
     if (x >= close_left && x <= close_right && y >= close_top && y <= close_bottom) {
       return static_cast<int>(index);
     }

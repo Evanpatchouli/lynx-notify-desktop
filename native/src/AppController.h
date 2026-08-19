@@ -32,6 +32,7 @@ class AppController {
  private:
   static constexpr UINT kTrayMessage = WM_APP + 41;
   static constexpr UINT kTrayId = 1;
+  static constexpr UINT_PTR kOverlayRegionTimerId = 1;
 
   TaskEngine engine_;
   NativeLynxWindow panel_;
@@ -44,6 +45,8 @@ class AppController {
   void AddTrayIcon();
   void RemoveTrayIcon();
   std::optional<LRESULT> HandlePanelMessage(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param);
+  std::optional<LRESULT> HandleOverlayMessage(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param);
+  void UpdateOverlayRegion();
   bool IsOverlayInteractivePoint(HWND hwnd, POINT point) const;
   bool DismissOverlayPoint(HWND hwnd, POINT point);
   void ShowTrayMenu(HWND hwnd);
