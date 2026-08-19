@@ -25,6 +25,16 @@ function timeLabel(ms: number) {
   return `${h}:${m}`;
 }
 
+function cardStyle(index: number): Record<string, string | number> {
+  const lastCard = index === overlay.value.cards.length - 1;
+  const spacing = lastCard ? 0 : overlay.value.settings.gap;
+  return {
+    width: `${overlay.value.settings.cardWidth}px`,
+    opacity: overlay.value.settings.opacity,
+    [isBottom.value ? 'marginTop' : 'marginBottom']: `${spacing}px`,
+  };
+}
+
 onMounted(() => {
   refresh();
   timer = setInterval(refresh, 160);
@@ -37,12 +47,12 @@ onUnmounted(() => {
 
 <template>
   <view :class="['overlay-screen', positionClass]">
-    <view :class="['notification-stack', isBottom ? 'bottom-stack' : '']" :style="{ gap: `${overlay.settings.gap}px` }">
+    <view :class="['notification-stack', isBottom ? 'bottom-stack' : '']">
       <view
         v-for="(card, index) in overlay.cards"
         :key="card.id"
         :class="['notification-card', overlay.settings.style, index === 0 ? 'newest' : '']"
-        :style="{ width: `${overlay.settings.cardWidth}px`, opacity: overlay.settings.opacity }"
+        :style="cardStyle(index)"
       >
         <view class="card-accent"></view>
         <view class="card-body">
@@ -76,7 +86,7 @@ onUnmounted(() => {
 .position-bottom-right { align-items: flex-end; justify-content: flex-end; }
 .notification-stack { display: flex; flex-direction: column; align-items: stretch; }
 .notification-stack.bottom-stack { flex-direction: column-reverse; }
-.notification-card { min-height: 104px; border-radius: 18px; overflow: hidden; display: flex; flex-direction: row; border: 1px solid rgba(255,255,255,0.68); box-shadow: 0 18px 45px rgba(15, 18, 30, 0.22); transform: translateY(0); }
+.notification-card { min-height: 104px; flex-shrink: 0; border-radius: 18px; overflow: hidden; display: flex; flex-direction: row; border: 1px solid rgba(255,255,255,0.68); box-shadow: 0 18px 45px rgba(15, 18, 30, 0.22); transform: translateY(0); }
 .notification-card.solid { background-color: #fdfdfe; }
 .notification-card.glass { background-color: rgba(239, 242, 248, 0.82); }
 .notification-card.newest { box-shadow: 0 20px 50px rgba(17, 20, 34, 0.27); }
