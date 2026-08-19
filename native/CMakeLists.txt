@@ -11,6 +11,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(LYNX_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lynx" CACHE PATH "LynxSDK for Windows root")
 set(FRONTEND_DIST "${CMAKE_CURRENT_SOURCE_DIR}/../frontend/dist")
+set(LYNX_NOTIFY_RESOURCES
+  resources/LynxNotify.rc
+  resources/resource.h
+  resources/LynxNotify.ico
+)
 
 if(NOT EXISTS "${LYNX_SDK_DIR}/include/lynx_view.h")
   message(FATAL_ERROR "LynxSDK is missing. Run scripts/setup-lynx-sdk.ps1 or extract LynxSDK 4.0 to native/thirdparty/lynx.")
@@ -34,10 +39,12 @@ add_executable(LynxNotify WIN32
   src/TemplateRenderer.cpp
   src/TimeUtils.cpp
   src/Storage.cpp
+  ${LYNX_NOTIFY_RESOURCES}
 )
 
 target_include_directories(LynxNotify PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  "${CMAKE_CURRENT_SOURCE_DIR}/resources"
   "${LYNX_SDK_DIR}/include"
 )
 

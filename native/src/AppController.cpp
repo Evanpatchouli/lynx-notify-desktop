@@ -3,6 +3,7 @@
 #ifdef _WIN32
 
 #include "NativeModule.h"
+#include "resource.h"
 #include "Storage.h"
 #include "lynx_env.h"
 
@@ -113,7 +114,7 @@ void AppController::AddTrayIcon() {
   tray_.uID = kTrayId;
   tray_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
   tray_.uCallbackMessage = kTrayMessage;
-  tray_.hIcon = LoadIconW(nullptr, IDI_INFORMATION);
+  tray_.hIcon = LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_LYNX_NOTIFY));
   wcscpy_s(tray_.szTip, L"Lynx Notify — 定时通知");
   tray_added_ = Shell_NotifyIconW(NIM_ADD, &tray_) != FALSE;
 }

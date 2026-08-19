@@ -5,6 +5,8 @@
 #include <dwmapi.h>
 #include <windowsx.h>
 
+#include "resource.h"
+
 #include <string>
 
 #pragma comment(lib, "dwmapi.lib")
@@ -22,6 +24,8 @@ bool NativeLynxWindow::EnsureClass(HINSTANCE instance) {
   wc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
   wc.lpfnWndProc = &NativeLynxWindow::WindowProc;
   wc.hInstance = instance;
+  wc.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(IDI_LYNX_NOTIFY));
+  wc.hIconSm = wc.hIcon;
   wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
   wc.hbrBackground = nullptr;
   wc.lpszClassName = kClassName;
