@@ -44,11 +44,23 @@ class NativeLynxWindow {
 
  private:
   static constexpr wchar_t kClassName[] = L"LynxNotifyHostWindow";
+  static constexpr UINT_PTR kLynxSubclassId = 1;
   static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param);
+  static LRESULT CALLBACK LynxWindowProc(
+      HWND hwnd,
+      UINT message,
+      WPARAM w_param,
+      LPARAM l_param,
+      UINT_PTR subclass_id,
+      DWORD_PTR ref_data);
   static bool EnsureClass(HINSTANCE instance);
   LRESULT HandleMessage(UINT message, WPARAM w_param, LPARAM l_param);
+  std::optional<LRESULT> HandleLynxMessage(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param);
+  bool IsPanelTitleBarPoint(POINT point) const;
+  bool ToParentClientPoint(HWND child, LPARAM l_param, POINT* point) const;
 
   HWND hwnd_ = nullptr;
+  HWND lynx_hwnd_ = nullptr;
   Kind kind_ = Kind::Panel;
   MessageHook message_hook_;
   HitTestHook hit_test_hook_;

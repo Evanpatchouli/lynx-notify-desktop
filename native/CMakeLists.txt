@@ -66,6 +66,7 @@ target_link_libraries(LynxNotify PRIVATE
   shell32
   ole32
   dwmapi
+  comctl32
 )
 
 add_custom_command(TARGET LynxNotify POST_BUILD
