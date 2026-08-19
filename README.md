@@ -36,11 +36,19 @@ lynx-notify-desktop/
 ├─ frontend/                   # Vue Lynx / Rspeedy
 │  ├─ lynx.config.ts           # panel + overlay 两个 entry
 │  └─ src/
-│     ├─ PanelApp.vue
-│     ├─ OverlayApp.vue
 │     ├─ bridge.ts             # NotifyHost NativeModule + Web mock
 │     ├─ panel.ts
-│     └─ overlay.ts
+│     ├─ overlay.ts
+│     ├─ panel/                 # 面板页面、表单组件和状态工具
+│     │  ├─ PanelApp.vue
+│     │  ├─ components/
+│     │  ├─ constants.ts
+│     │  └─ utils/task.ts
+│     └─ overlay/               # 覆盖层卡片、堆叠和动画逻辑
+│        ├─ OverlayApp.vue
+│        ├─ components/
+│        ├─ composables/useNotificationStack.ts
+│        └─ types.ts
 ├─ native/                     # C++17 + Win32 + LynxSDK 4.0
 │  ├─ CMakeLists.txt
 │  ├─ thirdparty/lynx/         # 这里放官方 Windows LynxSDK
@@ -116,6 +124,12 @@ native\thirdparty\lynx\
 .\scripts\build.ps1
 ```
 
+如果 PowerShell 执行策略阻止未签名脚本，请使用当前进程绕过策略执行，不会修改系统级策略：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1
+```
+
 默认构建 Release；完成后通常位于：
 
 ```text
@@ -128,6 +142,12 @@ native\build\Release\LynxNotify.exe
 
 ```powershell
 .\scripts\build.ps1 -SkipNpmInstall
+```
+
+对应的绕过策略写法：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -SkipNpmInstall
 ```
 
 ## 调度语义
