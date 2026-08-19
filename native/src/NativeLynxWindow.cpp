@@ -3,6 +3,7 @@
 #ifdef _WIN32
 
 #include <dwmapi.h>
+#include <windowsx.h>
 
 #include <string>
 
@@ -122,7 +123,28 @@ LRESULT NativeLynxWindow::HandleMessage(UINT message, WPARAM w_param, LPARAM l_p
     if (auto result = message_hook_(hwnd_, message, w_param, l_param); result.has_value()) return *result;
   }
 
-  if (kind_ == Kind::Overlay) {
+  if (kind_ == Kind::Panel) {
+    if (message == WM_NCHITTEST) {
+      POINT point{GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param)};
+      ScreenToClient(hwnd_, &point);
+
+      RECT client{};
+      GetClientRect(hwnd_, &client);
+      const UINT dpi = GetDpiForWindow(hwnd_);
+      const int titlebar_height = MulDiv(46, static_cast<int>(dpi), 96);
+      const int action_width = MulDiv(92, static_cast<int>(dpi), 96);
+
+      // The title bar is rendered by Lynx, so expose its background as the
+      // native caption while leaving the minimize/close buttons clickable.
+      if (point.y >= 0 && point.y < titlebar_height && point.x >= 0 &&
+          point.x < client.right - action_width) {
+        return HTCAPTION;
+      }
+    } else if (message == WM_SETCURSOR && LOWORD(l_param) == HTCAPTION) {
+      SetCursor(LoadCursorW(nullptr, IDC_SIZEALL));
+      return TRUE;
+    }
+  } else if (kind_ == Kind::Overlay) {
     switch (message) {
       case WM_NCHITTEST:
         return HTTRANSPARENT;

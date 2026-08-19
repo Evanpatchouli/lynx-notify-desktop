@@ -248,10 +248,6 @@ function previewCard() {
   showToast(hostBridge.isNative() ? '预览已发送到桌面' : 'Web Preview 中仅演示面板');
 }
 
-function dragWindow() {
-  hostBridge.windowCommand('drag');
-}
-
 function nav(target: 'home' | 'settings') {
   if (target === 'home') refresh();
   page.value = target;
@@ -261,7 +257,7 @@ function nav(target: 'home' | 'settings') {
 <template>
   <view class="app-shell">
     <view class="titlebar">
-      <view class="drag-zone" @mousedown="dragWindow" @touchstart="dragWindow">
+      <view class="drag-zone">
         <view class="brand-mark"><text class="brand-dot">●</text></view>
         <text class="brand-title">Lynx Notify</text>
       </view>
@@ -508,7 +504,7 @@ function nav(target: 'home' | 'settings') {
 * { box-sizing: border-box; }
 .app-shell { width: 100vw; height: 100vh; background-color: #f5f6f8; display: flex; flex-direction: column; color: #17191f; }
 .titlebar { height: 46px; flex-shrink: 0; display: flex; flex-direction: row; align-items: center; justify-content: space-between; background-color: #fbfbfc; border-bottom: 1px solid #e9e9ed; }
-.drag-zone { height: 46px; flex: 1; display: flex; flex-direction: row; align-items: center; padding-left: 15px; cursor: default; }
+.drag-zone { height: 46px; flex: 1; display: flex; flex-direction: row; align-items: center; padding-left: 15px; cursor: move; }
 .brand-mark { width: 22px; height: 22px; border-radius: 7px; background-color: #6757e8; display: flex; align-items: center; justify-content: center; }
 .brand-dot { color: white; font-size: 8px; }
 .brand-title { font-size: 13px; font-weight: 600; margin-left: 9px; color: #252730; }
