@@ -151,6 +151,13 @@ export const hostBridge = {
     return true;
   },
 
+  dismissNotification(id: string): boolean {
+    if (hasNativeHost()) return native()!.dismissNotification(id);
+    const before = mockOverlay.cards.length;
+    mockOverlay.cards = mockOverlay.cards.filter((card) => card.id !== id);
+    return mockOverlay.cards.length !== before;
+  },
+
   windowCommand(command: 'drag' | 'minimize' | 'hide' | 'quit'): void {
     if (hasNativeHost()) native()!.windowCommand(command);
   },

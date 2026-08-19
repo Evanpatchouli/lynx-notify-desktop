@@ -147,7 +147,9 @@ LRESULT NativeLynxWindow::HandleMessage(UINT message, WPARAM w_param, LPARAM l_p
   } else if (kind_ == Kind::Overlay) {
     switch (message) {
       case WM_NCHITTEST:
-        return HTTRANSPARENT;
+        // The close control makes notification cards interactive. Keep the
+        // overlay non-activating while allowing Lynx to receive card taps.
+        return HTCLIENT;
       case WM_MOUSEACTIVATE:
         return MA_NOACTIVATE;
       case WM_ERASEBKGND:

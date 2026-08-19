@@ -13,6 +13,11 @@ function refresh() {
   overlay.value = hostBridge.getOverlayState();
 }
 
+function dismissCard(id: string) {
+  hostBridge.dismissNotification(id);
+  refresh();
+}
+
 function timeLabel(ms: number) {
   const date = new Date(ms);
   const h = String(date.getHours()).padStart(2, '0');
@@ -46,7 +51,12 @@ onUnmounted(() => {
               <view class="card-logo"><text class="card-logo-text">N</text></view>
               <text class="card-app-name">LYNX NOTIFY</text>
             </view>
-            <text class="card-time">{{ timeLabel(card.createdAtMs) }}</text>
+            <view class="card-head-actions">
+              <text class="card-time">{{ timeLabel(card.createdAtMs) }}</text>
+              <view class="card-close" @tap.stop="dismissCard(card.id)">
+                <text class="card-close-glyph">×</text>
+              </view>
+            </view>
           </view>
           <text class="card-title">{{ card.title }}</text>
           <text class="card-message">{{ card.body }}</text>
@@ -58,7 +68,7 @@ onUnmounted(() => {
 
 <style>
 * { box-sizing: border-box; }
-.overlay-screen { width: 100vw; height: 100vh; padding: 26px; display: flex; background-color: rgba(0,0,0,0); pointer-events: none; }
+.overlay-screen { width: 100vw; height: 100vh; padding: 26px; display: flex; background-color: rgba(0,0,0,0); }
 .position-top-left { align-items: flex-start; justify-content: flex-start; }
 .position-top-right { align-items: flex-start; justify-content: flex-end; }
 .position-center { align-items: center; justify-content: center; }
@@ -77,7 +87,10 @@ onUnmounted(() => {
 .card-logo { width: 21px; height: 21px; border-radius: 7px; background-color: #6757e8; align-items: center; justify-content: center; display: flex; margin-right: 7px; }
 .card-logo-text { color: #ffffff; font-size: 9px; font-weight: 700; }
 .card-app-name { color: #8a8d99; font-size: 8px; font-weight: 700; letter-spacing: 0.7px; }
+.card-head-actions { display: flex; flex-direction: row; align-items: center; }
 .card-time { color: #9a9ca6; font-size: 9px; }
+.card-close { width: 24px; height: 24px; margin-left: 5px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background-color: rgba(32, 35, 45, 0.06); cursor: pointer; }
+.card-close-glyph { color: #70737d; font-size: 16px; line-height: 20px; }
 .card-title { display: block; margin-top: 9px; color: #22252d; font-size: 14px; font-weight: 650; line-height: 19px; }
 .card-message { display: block; margin-top: 4px; color: #666a75; font-size: 11px; line-height: 17px; }
 </style>
