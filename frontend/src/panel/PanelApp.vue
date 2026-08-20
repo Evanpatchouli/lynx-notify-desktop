@@ -112,7 +112,7 @@ function handleWindowCommand(command: 'minimize' | 'hide') {
 
 <style>
 * { box-sizing: border-box; }
-.app-shell { width: 100vw; height: 100vh; background-color: #f5f6f8; display: flex; flex-direction: column; color: #17191f; border-radius: 15px; }
+.app-shell { width: 100vw; height: 100vh; background-color: #f5f6f8; display: flex; flex-direction: column; color: #17191f; overflow: hidden; }
 .page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 22px 20px 0 20px; }
 .page-head { display: flex; flex-direction: row; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
 .eyebrow { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1.4px; color: #8d8f99; margin-bottom: 5px; }

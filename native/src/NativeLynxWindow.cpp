@@ -76,6 +76,25 @@ bool NativeLynxWindow::Create(
       this);
   if (!hwnd_) return false;
 
+  if (kind == Kind::Panel) {
+    // Prefer DWM's compositor-rounded corners on Windows 11. SetWindowRgn is
+    // a binary mask, so keep it only as a compatibility fallback for older systems.
+    DWM_WINDOW_CORNER_PREFERENCE preference = DWMWCP_ROUND;
+    if (FAILED(DwmSetWindowAttribute(
+            hwnd_,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &preference,
+            sizeof(preference)))) {
+      const UINT dpi = GetDpiForWindow(hwnd_);
+      const int corner_diameter = MulDiv(30, static_cast<int>(dpi), 96);
+      HRGN region =
+          CreateRoundRectRgn(0, 0, width + 1, height + 1, corner_diameter, corner_diameter);
+      if (region && !SetWindowRgn(hwnd_, region, TRUE)) {
+        DeleteObject(region);
+      }
+    }
+  }
+
   if (kind == Kind::Overlay) {
     SetLayeredWindowAttributes(hwnd_, 0, 255, LWA_ALPHA);
     MARGINS margins{-1};

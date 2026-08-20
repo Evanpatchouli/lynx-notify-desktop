@@ -9,7 +9,11 @@ $repo = Split-Path -Parent $PSScriptRoot
 $frontend = Join-Path $repo 'frontend'
 $native = Join-Path $repo 'native'
 $build = Join-Path $native 'build'
+$output = Join-Path $repo 'output'
 $sdk = Join-Path $native 'thirdparty\lynx'
+$manifest = Get-Content -Raw (Join-Path $frontend 'package.json') | ConvertFrom-Json
+$appVersion = [string]$manifest.version
+if ([string]::IsNullOrWhiteSpace($appVersion)) { throw 'frontend/package.json is missing a version.' }
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js 18+ is required.' }
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { throw 'npm is required.' }
@@ -35,5 +39,10 @@ if ($LASTEXITCODE -ne 0) { throw "CMake configure failed with exit code $LASTEXI
 cmake --build $build --config $Configuration --parallel
 if ($LASTEXITCODE -ne 0) { throw "CMake build failed with exit code $LASTEXITCODE." }
 
-$exe = Join-Path $build "$Configuration\LynxNotify.exe"
+$exe = Join-Path $output "$Configuration\LynxNotify.exe"
+$releaseDirectory = Join-Path $output $Configuration
+$archive = Join-Path $output ("LynxNotify-{0}.zip" -f $appVersion)
+Compress-Archive -Path (Join-Path $releaseDirectory '*') -DestinationPath $archive -Force
+
 Write-Host "`nBuild complete: $exe" -ForegroundColor Green
+Write-Host "Package complete: $archive" -ForegroundColor Green

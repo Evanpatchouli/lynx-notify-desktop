@@ -133,10 +133,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1
 默认构建 Release；完成后通常位于：
 
 ```text
-native\build\Release\LynxNotify.exe
+output\Release\LynxNotify.exe
+output\LynxNotify-<version>.zip
 ```
 
-脚本会先执行 Vue Lynx production build，再通过 CMake 构建 Win32 host，并把 `.lynx.bundle`、`lynx.dll`、`data` 和 Lynx core 文件复制到 exe 目录。
+脚本会先执行 Vue Lynx production build，再通过 CMake 构建 Win32 host，把 `.lynx.bundle`、`lynx.dll`、`data` 和 Lynx core 文件复制到 exe 目录，最后将整个 Release 运行目录压缩为版本包。版本号读取自 `frontend/package.json`。
 
 如已经执行过 `npm install`：
 
