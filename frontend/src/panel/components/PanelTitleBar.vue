@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import packageManifest from '../../../package.json';
+import closeIcon from '../assets/icons/window-close.png';
+import minimizeIcon from '../assets/icons/window-minimize.png';
 
 type WindowCommand = 'minimize' | 'hide';
 
 const appVersion = packageManifest.version;
+const windowIconStyle = {
+  width: '14px',
+  height: '14px',
+  flexShrink: 0,
+};
 
 const emit = defineEmits<{
   (event: 'window-command', command: WindowCommand): void;
@@ -20,8 +27,12 @@ const emit = defineEmits<{
       </view>
     </view>
     <view class="window-actions">
-      <view class="window-button" @tap="emit('window-command', 'minimize')"><text class="window-glyph">—</text></view>
-      <view class="window-button close" @tap="emit('window-command', 'hide')"><text class="window-glyph">×</text></view>
+      <view class="window-button" @tap="emit('window-command', 'minimize')">
+        <image :src="minimizeIcon" mode="aspectFit" :style="windowIconStyle" />
+      </view>
+      <view class="window-button close" @tap="emit('window-command', 'hide')">
+        <image :src="closeIcon" mode="aspectFit" :style="windowIconStyle" />
+      </view>
     </view>
   </view>
 </template>
@@ -35,7 +46,8 @@ const emit = defineEmits<{
 .brand-title { font-size: 13px; line-height: 15px; font-weight: 600; color: #252730; }
 .brand-version { margin-top: 1px; font-size: 9px; line-height: 11px; font-weight: 500; color: #a0a2ab; }
 .window-actions { display: flex; height: 46px; flex-direction: row; }
-.window-button { width: 45px; height: 46px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.window-button { width: 45px; height: 46px; display: flex; align-items: center; justify-content: center; cursor: pointer; background-color: transparent; transition: background-color 120ms ease; }
 .window-button.close { width: 47px; }
-.window-glyph { font-size: 17px; color: #5e616b; }
+.window-button:hover { background-color: #f0f0f4; }
+.window-button:active { background-color: #e6e6ee; }
 </style>
