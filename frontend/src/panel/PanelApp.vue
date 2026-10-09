@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue-lynx';
+import { onMounted, onUnmounted, ref, watch } from 'vue-lynx';
 import { hostBridge } from '../bridge';
 import type { AppState, CardSettings, NotificationTask } from '../types';
 import BottomNav from './components/BottomNav.vue';
@@ -21,10 +21,26 @@ watch(page, (value) => {
 const editorTask = ref<NotificationTask>(createEmptyTask());
 const toast = ref('');
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
 function refresh() {
-  state.value = hostBridge.getState();
+  const next = hostBridge.getState();
+  // Avoid rerendering the list when the native scheduler has not changed it.
+  if (JSON.stringify(next) !== JSON.stringify(state.value)) state.value = next;
 }
+
+onMounted(() => {
+  refresh();
+  refreshTimer = setInterval(() => {
+    // Settings and editor pages own local edits; only sync the task list.
+    if (page.value === 'home') refresh();
+  }, 500);
+});
+
+onUnmounted(() => {
+  if (refreshTimer !== undefined) clearInterval(refreshTimer);
+  if (toastTimer !== undefined) clearTimeout(toastTimer);
+});
 
 function showToast(message: string) {
   toast.value = message;

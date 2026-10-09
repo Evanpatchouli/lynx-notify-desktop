@@ -14,6 +14,8 @@ Win32 process
 
 The panel and overlay are independent native windows in the same process. Closing or minimizing the panel releases its Lynx view; the small panel HWND stays alive for tray callbacks and a native notification timer. Reopening rebuilds the view from host state. While editing a task, the view stays alive to preserve unsaved drafts. Exiting from the tray terminates the process.
 
+While the task list is open, the panel polls `NotifyHost.getState()` every 500 ms so next execution times and completion/disabled states follow the native scheduler automatically. Unchanged state does not trigger a list update. Polling skips the settings and editor pages to preserve local edits, and its timer is cleared when the panel component is unmounted.
+
 The overlay is created only while notification cards are active and destroyed after the last card's exit animation. An idle background process performs only a native card-presence check, with no overlay JavaScript polling. All window/view lifetime changes run on the Win32 message thread; NativeModule window commands are posted to that thread. Release builds disable Lynx DevTool and LogBox.
 
 ## Task model
