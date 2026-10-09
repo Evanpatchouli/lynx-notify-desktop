@@ -13,19 +13,30 @@
 #include <array>
 #include <vector>
 
-AppController::AppController() : engine_(storage::DefaultStatePath()) {}
+AppController::AppController() : AppController(storage::DefaultStatePath()) {}
+
+AppController::AppController(std::filesystem::path state_path) : engine_(std::move(state_path)) {}
 
 AppController::~AppController() {
-  if (overlay_.hwnd()) KillTimer(overlay_.hwnd(), kOverlayRegionTimerId);
+  if (panel_.hwnd()) KillTimer(panel_.hwnd(), kOverlayTimerId);
   RemoveTrayIcon();
   engine_.Stop();
+  overlay_.Destroy();
+  panel_.Destroy();
 }
 
 int AppController::Run(HINSTANCE instance, int show_command) {
+  instance_ = instance;
   engine_.Load();
 
   auto& lynx_env = lynx::pub::LynxEnv::GetInstance();
+#ifdef LYNX_NOTIFY_DEVTOOLS
   lynx_env.SetDevtoolEnabled(true);
+  lynx_env.SetLogboxEnabled(true);
+#else
+  lynx_env.SetDevtoolEnabled(false);
+  lynx_env.SetLogboxEnabled(false);
+#endif
   lynx_env.SetDevtoolAppInfo("App", "LynxNotify");
   lynx_env.SetDevtoolAppInfo("AppVersion", "0.1.0");
   lynx_env.RegisterNativeModule("NotifyHost", NotifyHostModuleCreator, this);
@@ -70,34 +81,77 @@ bool AppController::CreateWindows(HINSTANCE instance, int show_command) {
     return false;
   }
 
+  if (!panel_.LoadBundle(ExecutableDir() / L"bundles" / L"panel.lynx.bundle")) return false;
+  if (!SetTimer(panel_.hwnd(), kOverlayTimerId, 120, nullptr)) return false;
+  panel_.Show(show_command == SW_HIDE ? SW_SHOWNORMAL : show_command);
+  return true;
+}
+
+bool AppController::EnsurePanelView() {
+  if (panel_.HasView()) return true;
+  if (!panel_.EnsureView()) return false;
+  if (panel_.LoadBundle(ExecutableDir() / L"bundles" / L"panel.lynx.bundle")) return true;
+  panel_.ReleaseView();
+  return false;
+}
+
+bool AppController::ShowPanel() {
+  if (IsIconic(panel_.hwnd())) panel_.Show(SW_RESTORE);
+  if (!EnsurePanelView()) return false;
+  panel_.Show(SW_SHOWNORMAL);
+  return true;
+}
+
+void AppController::HidePanel() {
+  panel_.Hide();
+  PostMessageW(panel_.hwnd(), kReleasePanelViewMessage, 0, 0);
+}
+
+bool AppController::CreateOverlay() {
   const int virtual_x = GetSystemMetrics(SM_XVIRTUALSCREEN);
   const int virtual_y = GetSystemMetrics(SM_YVIRTUALSCREEN);
   const int virtual_width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
   const int virtual_height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
   if (!overlay_.Create(
-          instance,
+          instance_,
           NativeLynxWindow::Kind::Overlay,
           virtual_x,
           virtual_y,
           virtual_width,
           virtual_height,
-          [this](HWND hwnd, UINT message, WPARAM w, LPARAM l) {
-            return HandleOverlayMessage(hwnd, message, w, l);
-          },
+          {},
           [this](HWND hwnd, POINT point) { return IsOverlayInteractivePoint(hwnd, point); },
           [this](HWND hwnd, POINT point) { return DismissOverlayPoint(hwnd, point); })) {
     return false;
   }
 
-  const auto bundles = ExecutableDir() / L"bundles";
-  if (!panel_.LoadBundle(bundles / L"panel.lynx.bundle")) return false;
-  if (!overlay_.LoadBundle(bundles / L"overlay.lynx.bundle")) return false;
+  if (!overlay_.LoadBundle(ExecutableDir() / L"bundles" / L"overlay.lynx.bundle")) {
+    overlay_.Destroy();
+    return false;
+  }
 
   UpdateOverlayRegion();
-  if (!SetTimer(overlay_.hwnd(), kOverlayRegionTimerId, 120, nullptr)) return false;
   overlay_.Show(SW_SHOWNOACTIVATE);
-  panel_.Show(show_command == SW_HIDE ? SW_SHOWNORMAL : show_command);
   return true;
+}
+
+void AppController::UpdateOverlay() {
+  if (engine_.HasActiveNotifications()) {
+    overlay_empty_since_ = 0;
+    if (!overlay_.hwnd() && !CreateOverlay()) {
+      overlay_.Destroy();
+      return;
+    }
+    UpdateOverlayRegion();
+  } else if (overlay_.hwnd()) {
+    const ULONGLONG now = GetTickCount64();
+    if (!overlay_empty_since_) overlay_empty_since_ = now;
+    // Allow the 160 ms frontend poll and 140 ms exit animation to finish.
+    if (now - overlay_empty_since_ >= 500) {
+      overlay_.Destroy();
+      overlay_empty_since_ = 0;
+    }
+  }
 }
 
 void AppController::UpdateOverlayRegion() {
@@ -142,17 +196,41 @@ bool AppController::DismissOverlayPoint(HWND hwnd, POINT point) {
 }
 
 void AppController::WindowCommand(const std::string& command) {
-  if (command == "drag") {
+  if (command == "retain-panel-draft") {
+    panel_has_draft_.store(true);
+    return;
+  }
+  if (command == "release-panel-draft") {
+    panel_has_draft_.store(false);
+    PostMessageW(panel_.hwnd(), kReleasePanelViewMessage, 0, 0);
+    return;
+  }
+  WindowAction action;
+  if (command == "drag") action = WindowAction::Drag;
+  else if (command == "minimize") action = WindowAction::Minimize;
+  else if (command == "hide") action = WindowAction::Hide;
+  else if (command == "quit") action = WindowAction::Quit;
+  else if (command == "show") action = WindowAction::Show;
+  else return;
+  // NativeModule calls can originate on Lynx's JS thread. Window and view
+  // lifetime changes must happen on the Win32 message thread after the call.
+  PostMessageW(panel_.hwnd(), kWindowCommandMessage, static_cast<WPARAM>(action), 0);
+}
+
+void AppController::HandleWindowAction(WindowAction action) {
+  if (action == WindowAction::Drag) {
     if (panel_.hwnd()) {
       ReleaseCapture();
       SendMessageW(panel_.hwnd(), WM_NCLBUTTONDOWN, HTCAPTION, 0);
     }
-  } else if (command == "minimize") {
+  } else if (action == WindowAction::Minimize) {
     if (panel_.hwnd()) ShowWindow(panel_.hwnd(), SW_MINIMIZE);
-  } else if (command == "hide") {
-    panel_.Hide();
-  } else if (command == "quit") {
+  } else if (action == WindowAction::Hide) {
+    HidePanel();
+  } else if (action == WindowAction::Quit) {
     PostQuitMessage(0);
+  } else if (action == WindowAction::Show) {
+    ShowPanel();
   }
 }
 
@@ -176,25 +254,36 @@ void AppController::RemoveTrayIcon() {
 }
 
 std::optional<LRESULT> AppController::HandlePanelMessage(
-    HWND hwnd, UINT message, WPARAM, LPARAM l_param) {
+    HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param) {
+  if (message == WM_TIMER && w_param == kOverlayTimerId) {
+    UpdateOverlay();
+    return 0;
+  }
+  if (message == kWindowCommandMessage) {
+    HandleWindowAction(static_cast<WindowAction>(w_param));
+    return 0;
+  }
+  if (message == kReleasePanelViewMessage) {
+    if ((!IsWindowVisible(hwnd) || IsIconic(hwnd)) && !panel_has_draft_.load()) panel_.ReleaseView();
+    return 0;
+  }
+  if (message == WM_CLOSE) {
+    HidePanel();
+    return 0;
+  }
+  if (message == WM_SIZE) {
+    if (w_param == SIZE_MINIMIZED) PostMessageW(hwnd, kReleasePanelViewMessage, 0, 0);
+    else if (IsWindowVisible(hwnd)) EnsurePanelView();
+  }
   if (message != kTrayMessage) return std::nullopt;
 
   const UINT mouse_message = LOWORD(l_param);
   if (mouse_message == WM_LBUTTONUP || mouse_message == WM_LBUTTONDBLCLK) {
-    panel_.Show(SW_SHOWNORMAL);
+    ShowPanel();
   } else if (mouse_message == WM_RBUTTONUP || mouse_message == WM_CONTEXTMENU) {
     ShowTrayMenu(hwnd);
   }
   return 0;
-}
-
-std::optional<LRESULT> AppController::HandleOverlayMessage(
-    HWND, UINT message, WPARAM w_param, LPARAM) {
-  if (message == WM_TIMER && w_param == kOverlayRegionTimerId) {
-    UpdateOverlayRegion();
-    return 0;
-  }
-  return std::nullopt;
 }
 
 void AppController::ShowTrayMenu(HWND hwnd) {
@@ -208,7 +297,7 @@ void AppController::ShowTrayMenu(HWND hwnd) {
   SetForegroundWindow(hwnd);
   const UINT selected = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd, nullptr);
   DestroyMenu(menu);
-  if (selected == 1001) panel_.Show(SW_SHOWNORMAL);
+  if (selected == 1001) ShowPanel();
   else if (selected == 1002) PostQuitMessage(0);
 }
 

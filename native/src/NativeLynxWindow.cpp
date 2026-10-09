@@ -99,9 +99,19 @@ bool NativeLynxWindow::Create(
     SetLayeredWindowAttributes(hwnd_, 0, 255, LWA_ALPHA);
     MARGINS margins{-1};
     DwmExtendFrameIntoClientArea(hwnd_, &margins);
-    SetWindowPos(hwnd_, HWND_TOPMOST, x, y, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    SetWindowPos(hwnd_, HWND_TOPMOST, x, y, width, height, SWP_NOACTIVATE);
   }
 
+  return EnsureView();
+}
+
+bool NativeLynxWindow::EnsureView() {
+  if (lynx_view_) return true;
+  if (!hwnd_) return false;
+  RECT client{};
+  if (!GetClientRect(hwnd_, &client)) return false;
+  const int width = client.right - client.left;
+  const int height = client.bottom - client.top;
   const float scale = static_cast<float>(GetDpiForWindow(hwnd_)) / 96.0f;
   lynx::pub::LynxView::Builder builder;
   builder.SetScreenSize(width, height, scale).SetFrame(0, 0, width, height).SetParent(hwnd_);
@@ -109,13 +119,16 @@ bool NativeLynxWindow::Create(
   if (!lynx_view_) return false;
 
   lynx_hwnd_ = reinterpret_cast<HWND>(lynx_view_->GetNativeWindow());
-  if (!lynx_hwnd_ || !IsWindow(lynx_hwnd_)) return false;
+  if (!lynx_hwnd_ || !IsWindow(lynx_hwnd_)) {
+    ReleaseView();
+    return false;
+  }
   if (!SetWindowSubclass(
           lynx_hwnd_,
           &NativeLynxWindow::LynxWindowProc,
           kLynxSubclassId,
           reinterpret_cast<DWORD_PTR>(this))) {
-    lynx_hwnd_ = nullptr;
+    ReleaseView();
     return false;
   }
   return true;
@@ -199,12 +212,17 @@ void NativeLynxWindow::SetInteractiveRegion(const std::vector<RECT>& rectangles)
   interactive_region_height_ = client_height;
 }
 
-void NativeLynxWindow::Destroy() {
+void NativeLynxWindow::ReleaseView() {
   if (lynx_hwnd_ && IsWindow(lynx_hwnd_)) {
     RemoveWindowSubclass(lynx_hwnd_, &NativeLynxWindow::LynxWindowProc, kLynxSubclassId);
   }
   lynx_hwnd_ = nullptr;
   lynx_view_ = {};
+  dragging_ = false;
+}
+
+void NativeLynxWindow::Destroy() {
+  ReleaseView();
   interactive_region_rects_.clear();
   interactive_region_initialized_ = false;
   interactive_region_width_ = 0;

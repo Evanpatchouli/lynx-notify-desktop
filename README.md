@@ -25,6 +25,7 @@
 - Overlay `TOPMOST + NOACTIVATE + click-through`，不抢焦点、不阻挡桌面操作。
 - 面板自绘标题栏，可拖动、最小化、隐藏。
 - 面板隐藏后任务继续运行；系统托盘可重新打开或退出。
+- 空闲后台按需释放 Lynx 界面：面板隐藏 / 最小化后释放视图（正在编辑任务时保留草稿），通知覆盖层只在有卡片时创建，最后一张卡片消失后释放；Release 关闭 DevTool 和 LogBox。
 - 本地持久化到 `%LOCALAPPDATA%\LynxNotify\state.json`。
 - Web Preview mock：没有 Windows NativeModule 时，也能在浏览器查看和操作面板 UI；`overlay.web.bundle` 会展示堆叠卡片样例。
 - `AGENTS.md`：按 Lynx 面向 AI 的建议提供项目级 agent 上下文。
@@ -153,6 +154,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -SkipNpmInstal
 
 ## 调度语义
 
+一次性触发时间、循环起始时间和结束时间按本地时区输入，支持 `YYYY-MM-DD HH:mm` 和 `YYYY-MM-DD HH:mm:ss`（例如 `2026-10-09 12:00:00`），省略秒数时按 0 秒处理。
+
 ### 一次性
 
 到达 `atMs` 后发布一次并自动停用。若应用关闭期间错过，到下次启动时会立即补发一次。
@@ -166,7 +169,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -SkipNpmInstal
 - 设置 `startAtMs`：从指定时刻开始；
 - 未设置：保存任务时即开始。
 
-之后每次发布完成后计算下一次间隔。应用关闭期间不会爆发式补发所有错过的循环，只会恢复后触发一次，再从当前时间继续计算。
+之后每次发布完成后计算下一次间隔。应用启动或重新启用任务时，跳过已经逾期的循环通知，从恢复时刻加上一个间隔作为下次触发时间，不立即补发，也不增加执行次数；尚未到期的触发时间保持不变。恢复后的下次触发时间若超过结束时间，任务会停用。
 
 ### 自定义间隔函数
 
@@ -256,6 +259,16 @@ SM_CYVIRTUALSCREEN
 ```
 
 覆盖 JSON、间隔表达式、模板变量和 TaskEngine 基础状态操作。
+
+Windows 上可在安装 SDK、构建前端后运行独立的视图生命周期测试（使用临时状态文件）：
+
+```powershell
+cmake -S native -B native/build -A x64 -DLYNX_NOTIFY_BUILD_TESTS=ON
+cmake --build native/build --config Release --target LynxNotify LynxNotifyLifecycleTests
+.\native\build\tests\Release\LynxNotifyLifecycleTests.exe
+```
+
+覆盖隐藏 / 最小化后的视图释放与恢复、编辑草稿保留、通知覆盖层创建与释放，以及没有界面时的后台调度。
 
 ## 当前边界
 

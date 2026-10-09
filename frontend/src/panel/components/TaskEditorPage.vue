@@ -61,7 +61,7 @@ function saveTask() {
   if (draft.value.type === 'once') {
     const at = parseDateTime(onceAtText.value);
     if (!at) {
-      validationError('时间格式应为 YYYY-MM-DD HH:mm');
+      validationError('时间格式应为 YYYY-MM-DD HH:mm，秒数可选（:ss）');
       return;
     }
     draft.value.once.atMs = at;
@@ -70,7 +70,7 @@ function saveTask() {
     if (intervalStartText.value.trim()) {
       const start = parseDateTime(intervalStartText.value);
       if (!start) {
-        validationError('起始时间格式不正确');
+        validationError('起始时间格式应为 YYYY-MM-DD HH:mm，秒数可选（:ss）');
         return;
       }
       draft.value.interval.startAtMs = start;
@@ -80,7 +80,7 @@ function saveTask() {
     if (intervalEndText.value.trim()) {
       const end = parseDateTime(intervalEndText.value);
       if (!end) {
-        validationError('结束时间格式不正确');
+        validationError('结束时间格式应为 YYYY-MM-DD HH:mm，秒数可选（:ss）');
         return;
       }
       draft.value.interval.endAtMs = end;
@@ -133,7 +133,7 @@ function saveTask() {
 
       <view v-if="draft.type === 'once'" class="conditional-box">
         <text class="field-label first">触发时间</text>
-        <input class="input" :value="onceAtText" placeholder="2026-08-19 13:00" @input="onceAtText = inputValue($event)" />
+        <input class="input" :value="onceAtText" placeholder="2026-10-09 12:00:00" @input="onceAtText = inputValue($event)" />
       </view>
 
       <view v-if="draft.type === 'interval'" class="conditional-box">
@@ -157,6 +157,7 @@ function saveTask() {
         <input class="input" :value="intervalStartText" placeholder="留空 = 保存后立即开始计时" @input="intervalStartText = inputValue($event)" />
         <text class="field-label">结束时间（可选）</text>
         <input class="input" :value="intervalEndText" placeholder="YYYY-MM-DD HH:mm" @input="intervalEndText = inputValue($event)" />
+        <text class="field-help">时间格式：YYYY-MM-DD HH:mm 或 YYYY-MM-DD HH:mm:ss，按本地时区。</text>
         <text class="field-label">最大循环次数（0 = 不限制）</text>
         <input class="input" :value="String(draft.interval.maxRuns)" placeholder="0" @input="draft.interval.maxRuns = Math.max(0, Math.floor(numValue($event, 0)))" />
         <text class="field-help">结束时间和循环次数只要任一条件先满足，任务就会停止。</text>

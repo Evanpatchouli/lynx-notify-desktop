@@ -39,15 +39,23 @@ function pad(value: number) {
 export function formatDateTime(ms: number): string {
   if (!ms) return '';
   const date = new Date(ms);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const seconds = date.getSeconds() ? `:${pad(date.getSeconds())}` : '';
+  return `${String(date.getFullYear()).padStart(4, '0')}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}${seconds}`;
 }
 
 export function parseDateTime(value: string): number {
-  const match = value.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})$/);
+  const match = value.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
   if (!match) return 0;
-  const [, y, m, d, hh, mm] = match;
-  const result = new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), 0, 0);
-  return Number.isNaN(result.getTime()) ? 0 : result.getTime();
+  const [, y, m, d, hh, mm, ss = '0'] = match;
+  const year = Number(y), month = Number(m) - 1, day = Number(d);
+  const hour = Number(hh), minute = Number(mm), second = Number(ss);
+  const result = new Date(0);
+  result.setFullYear(year, month, day);
+  result.setHours(hour, minute, second, 0);
+  // Date 会自动进位非法日期和时间；输入必须与解析结果一致。
+  if (result.getFullYear() !== year || result.getMonth() !== month || result.getDate() !== day
+    || result.getHours() !== hour || result.getMinutes() !== minute || result.getSeconds() !== second) return 0;
+  return result.getTime();
 }
 
 export function formatTime(ms: number): string {

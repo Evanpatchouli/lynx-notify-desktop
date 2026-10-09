@@ -59,6 +59,11 @@ std::string TaskEngine::GetStateJson() const {
   return mini_json::Dump(BuildStateJsonLocked());
 }
 
+bool TaskEngine::HasActiveNotifications() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return !cards_.empty();
+}
+
 std::string TaskEngine::GetOverlayStateJson() const {
   std::lock_guard<std::mutex> lock(mutex_);
   mini_json::Value::Object root;
@@ -348,7 +353,21 @@ void TaskEngine::ResetNextRunLocked(NotificationTask& task, int64_t now_ms, bool
       return;
     }
     if (reset_runtime || task.next_run_at_ms <= 0) {
-      task.next_run_at_ms = task.interval.start_at_ms > 0 ? task.interval.start_at_ms : now_ms;
+      if (task.interval.start_at_ms > 0) {
+        task.next_run_at_ms = task.interval.start_at_ms;
+      } else {
+        task.next_run_at_ms = reset_runtime ? now_ms : ComputeNextIntervalMsLocked(task, now_ms, task.last_run_at_ms);
+      }
+    }
+    if (!reset_runtime && task.enabled) {
+      if (task.next_run_at_ms < now_ms) {
+        // Resume without replaying an overdue notification or consuming a run.
+        task.next_run_at_ms = ComputeNextIntervalMsLocked(task, now_ms, task.last_run_at_ms);
+      }
+      if (task.interval.end_at_ms > 0 && task.next_run_at_ms > task.interval.end_at_ms) {
+        task.enabled = false;
+        task.next_run_at_ms = 0;
+      }
     }
     return;
   }

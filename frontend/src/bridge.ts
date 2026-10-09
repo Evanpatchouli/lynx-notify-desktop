@@ -158,7 +158,7 @@ export const hostBridge = {
     return mockOverlay.cards.length !== before;
   },
 
-  windowCommand(command: 'drag' | 'minimize' | 'hide' | 'quit'): void {
+  windowCommand(command: 'drag' | 'minimize' | 'hide' | 'quit' | 'retain-panel-draft' | 'release-panel-draft'): void {
     if (hasNativeHost()) native()!.windowCommand(command);
   },
 };

@@ -27,6 +27,7 @@ class TaskEngine {
 
   std::string GetStateJson() const;
   std::string GetOverlayStateJson() const;
+  bool HasActiveNotifications() const;
   std::string UpsertTaskJson(const std::string& task_json);
   bool DeleteTask(const std::string& id);
   bool SetTaskEnabled(const std::string& id, bool enabled);

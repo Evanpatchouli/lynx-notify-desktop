@@ -38,6 +38,9 @@ class NativeLynxWindow {
       HitTestHook hit_test = {},
       ClickHook click = {});
   bool LoadBundle(const std::filesystem::path& bundle_path);
+  bool EnsureView();
+  void ReleaseView();
+  bool HasView() const { return lynx_view_ != nullptr; }
   void Show(int command = SW_SHOWNORMAL);
   void Hide();
   void Destroy();

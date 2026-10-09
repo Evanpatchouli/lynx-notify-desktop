@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue-lynx';
+import { ref, watch } from 'vue-lynx';
 import { hostBridge } from '../bridge';
 import type { AppState, CardSettings, NotificationTask } from '../types';
 import BottomNav from './components/BottomNav.vue';
@@ -14,6 +14,10 @@ type PanelPage = 'home' | 'settings' | 'editor';
 
 const state = ref<AppState>(hostBridge.getState());
 const page = ref<PanelPage>('home');
+// Keep an editor's unsaved draft alive when the panel is hidden or minimized.
+watch(page, (value) => {
+  hostBridge.windowCommand(value === 'editor' ? 'retain-panel-draft' : 'release-panel-draft');
+}, { immediate: true, flush: 'sync' });
 const editorTask = ref<NotificationTask>(createEmptyTask());
 const toast = ref('');
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
