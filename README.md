@@ -159,6 +159,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -SkipNpmInstal
 
 ### 循环
 
+任务列表中的固定循环间隔按时、分、秒显示，并省略为零的单位，例如 `1800s` 显示为 `30分`，`3661s` 显示为 `1时1分1秒`。
+
 第一次触发时间：
 
 - 设置 `startAtMs`：从指定时刻开始；

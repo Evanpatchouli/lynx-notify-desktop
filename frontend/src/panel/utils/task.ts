@@ -54,10 +54,21 @@ export function formatTime(ms: number): string {
   return ms ? formatDateTime(ms) : '等待计算';
 }
 
+function formatInterval(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = Number((seconds % 60).toFixed(10));
+  return [
+    hours ? `${hours}时` : '',
+    minutes ? `${minutes}分` : '',
+    remainingSeconds ? `${remainingSeconds}秒` : '',
+  ].join('') || '0秒';
+}
+
 export function formatTaskKind(task: NotificationTask): string {
   if (task.type === 'once') return `一次 · ${formatDateTime(task.once.atMs)}`;
   if (task.type === 'interval') {
-    if (task.interval.mode === 'fixed') return `循环 · 每 ${task.interval.fixedSec}s`;
+    if (task.interval.mode === 'fixed') return `循环 · 每 ${formatInterval(task.interval.fixedSec)}`;
     return `循环 · ƒ(${task.interval.expression})`;
   }
   if (task.schedule.mode === 'daily') return `每天 · ${pad(task.schedule.hour)}:${pad(task.schedule.minute)}`;
