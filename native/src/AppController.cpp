@@ -2,6 +2,8 @@
 
 #ifdef _WIN32
 
+#include "AppVersion.h"
+#include "GitHubRelease.h"
 #include "NativeModule.h"
 #include "resource.h"
 #include "Storage.h"
@@ -13,11 +15,17 @@
 #include <array>
 #include <vector>
 
-AppController::AppController() : AppController(storage::DefaultStatePath()) {}
+AppController::AppController() : AppController(storage::DefaultStatePath(), FetchLatestRelease) {}
 
-AppController::AppController(std::filesystem::path state_path) : engine_(std::move(state_path)) {}
+AppController::AppController(std::filesystem::path state_path, UpdateChecker::Fetch fetch_release)
+    : engine_(std::move(state_path)),
+      updates_(LYNX_NOTIFY_VERSION, std::move(fetch_release), [this](const std::string& version) {
+        engine_.PreviewNotificationJson(mini_json::Dump(mini_json::Value::Object{
+            {"title", "Lynx Notify " + version + " 已发布"}, {"body", "打开设置，在「版本与更新」中查看和下载新版。"}}));
+      }) {}
 
 AppController::~AppController() {
+  updates_.Stop();
   if (panel_.hwnd()) KillTimer(panel_.hwnd(), kOverlayTimerId);
   RemoveTrayIcon();
   engine_.Stop();
@@ -38,12 +46,13 @@ int AppController::Run(HINSTANCE instance, int show_command) {
   lynx_env.SetLogboxEnabled(false);
 #endif
   lynx_env.SetDevtoolAppInfo("App", "LynxNotify");
-  lynx_env.SetDevtoolAppInfo("AppVersion", "0.1.0");
+  lynx_env.SetDevtoolAppInfo("AppVersion", LYNX_NOTIFY_VERSION);
   lynx_env.RegisterNativeModule("NotifyHost", NotifyHostModuleCreator, this);
 
   if (!CreateWindows(instance, show_command)) return 2;
   AddTrayIcon();
   engine_.Start();
+  updates_.Start();
 
   MSG message{};
   while (GetMessageW(&message, nullptr, 0, 0) > 0) {
@@ -53,6 +62,17 @@ int AppController::Run(HINSTANCE instance, int show_command) {
   engine_.Stop();
   RemoveTrayIcon();
   return static_cast<int>(message.wParam);
+}
+
+std::string AppController::GetUpdateStateJson() const {
+  const auto state = updates_.State();
+  return mini_json::Dump(mini_json::Value::Object{
+      {"currentVersion", LYNX_NOTIFY_VERSION}, {"status", state.status}, {"latestVersion", state.latest_version},
+      {"message", state.message}, {"checkedAtMs", state.checked_at_ms}});
+}
+
+bool AppController::OpenUpdatePage() const {
+  return updates_.State().status == "available" && OpenReleasePage();
 }
 
 std::filesystem::path AppController::ExecutableDir() const {

@@ -8,7 +8,8 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": false,
     "verbatimModuleSyntax": true,
-    "types": []
+    "types": ["@lynx-js/rspeedy/client", "vue-lynx/types"]
   },
+  "vueCompilerOptions": { "plugins": ["vue-lynx/types/volar-plugin"] },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "lynx.config.ts"]
 }

@@ -53,6 +53,14 @@ export interface AppState {
   tasks: NotificationTask[];
 }
 
+export interface UpdateState {
+  currentVersion: string;
+  status: 'idle' | 'checking' | 'current' | 'available' | 'no-release' | 'error';
+  latestVersion: string;
+  message: string;
+  checkedAtMs: number;
+}
+
 export interface ActiveNotification {
   id: string;
   taskId: string;

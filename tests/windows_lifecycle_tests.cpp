@@ -70,7 +70,11 @@ int main() {
   std::atomic<bool> finished{false};
   int exit_code = 0;
   {
-    AppController app(directory / "state.json");
+    std::atomic<unsigned> release_checks{0};
+    AppController app(directory / "state.json", [&] {
+      ++release_checks;
+      return ReleaseResponse{404, {}};
+    });
     std::thread checks([&] {
       try {
         HWND panel = nullptr;
@@ -79,6 +83,7 @@ int main() {
         Check(!lynx::pub::LynxEnv::GetInstance().IsDevtoolEnabled(), "production DevTool enabled");
         Check(!lynx::pub::LynxEnv::GetInstance().IsLogboxEnabled(), "production LogBox enabled");
         Check(!FindOwnWindow(L"Lynx Notify Overlay"), "idle overlay was created");
+        Check(release_checks == 1, "expected one update check on startup");
         PrintMemory(report, "panel open");
 
         for (int cycle = 0; cycle < 3; ++cycle) {
@@ -115,6 +120,9 @@ int main() {
         }
 
         NotificationTask scheduled;
+        app.CheckForUpdates();
+        WaitFor([&] { return release_checks == 2 && mini_json::Parse(app.GetUpdateStateJson()).At("status").AsString() == "no-release"; },
+                "native update check did not complete with both views released");
         scheduled.type = "once";
         scheduled.once.at_ms = time_utils::NowMs() + 1000;
         const auto saved = TaskFromJson(mini_json::Parse(app.UpsertTaskJson(mini_json::Dump(ToJson(scheduled)))));

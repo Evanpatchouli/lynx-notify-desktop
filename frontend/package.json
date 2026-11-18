@@ -1,11 +1,13 @@
 {
   "name": "lynx-notify-frontend",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "releaseDate": "2026-11-18",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "rspeedy dev",
     "build": "rspeedy build",
+    "typecheck": "vue-tsc --noEmit",
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
@@ -14,6 +16,8 @@
   },
   "devDependencies": {
     "@lynx-js/rspeedy": "0.14.5",
-    "typescript": "^5.8.0"
+    "@lynx-js/types": "3.7.0",
+    "typescript": "^5.8.0",
+    "vue-tsc": "3.3.14"
   }
 }

@@ -4,6 +4,7 @@ frontend/dist/
 native/build/
 out/
 output/
+/release/
 *.user
 *.suo
 *.VC.db

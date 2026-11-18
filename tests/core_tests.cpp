@@ -88,6 +88,12 @@ int main() {
     // Simulate reopening after several days with persisted interval tasks.
     const auto path = std::filesystem::temp_directory_path() / "lynx-notify-resume-test.json";
     const int64_t fixture_now = time_utils::NowMs();
+    using namespace std::chrono_literals;
+    const auto november_18 = 37 * 24h;
+    const auto restart = november_18 + 15h + 48min + 21s;
+    const auto fixture_ms = [&](std::chrono::seconds since_october_12) {
+      return fixture_now + std::chrono::duration_cast<std::chrono::milliseconds>(since_october_12 - restart).count();
+    };
     NotificationTask overdue;
     overdue.id = "overdue";
     overdue.type = "interval";
@@ -99,26 +105,35 @@ int main() {
     auto future = overdue;
     future.id = "future";
     future.next_run_at_ms = fixture_now + 600'000;
-    auto expression = overdue;
+    auto anchored = overdue;
+    anchored.id = "anchored";
+    anchored.interval.start_at_ms = fixture_ms(11h + 58min);
+    const int64_t next_slot_ms = fixture_ms(november_18 + 15h + 58min);
+    auto drifted = anchored;
+    drifted.id = "drifted";
+    drifted.next_run_at_ms = fixture_ms(november_18 + 16h + 18min + 21s);
+    auto expression = anchored;
     expression.id = "expression";
     expression.interval.mode = "expression";
     expression.interval.expression = "max(10, 60 - run * 5)";
-    auto exhausted = overdue;
+    auto exhausted = anchored;
     exhausted.id = "exhausted";
     exhausted.interval.max_runs = exhausted.run_count;
-    auto expired = overdue;
+    auto expired = anchored;
     expired.id = "expired";
     expired.interval.end_at_ms = fixture_now - 1000;
-    auto ending = overdue;
+    auto ending = anchored;
     ending.id = "ending";
-    ending.interval.end_at_ms = fixture_now + 60'000;
-    auto disabled = overdue;
+    ending.interval.end_at_ms = next_slot_ms - 1;
+    auto within_end = anchored;
+    within_end.id = "within-end";
+    within_end.interval.end_at_ms = next_slot_ms + 1;
+    auto disabled = anchored;
     disabled.id = "disabled";
     disabled.enabled = false;
-    auto old_start = overdue;
+    auto old_start = anchored;
     old_start.id = "old-start";
     old_start.next_run_at_ms = 0;
-    old_start.interval.start_at_ms = overdue.last_run_at_ms;
     auto missing_deadline = overdue;
     missing_deadline.id = "missing-deadline";
     missing_deadline.next_run_at_ms = 0;
@@ -128,7 +143,8 @@ int main() {
 
     mini_json::Value::Object fixture;
     mini_json::Value::Array tasks;
-    for (const auto& task : {overdue, future, expression, exhausted, expired, ending, disabled, old_start, missing_deadline, future_start}) {
+    for (const auto& task : {overdue, future, anchored, drifted, expression, exhausted, expired, ending,
+                             within_end, disabled, old_start, missing_deadline, future_start}) {
       tasks.push_back(ToJson(task));
     }
     fixture["tasks"] = std::move(tasks);
@@ -146,7 +162,14 @@ int main() {
       assert(false && "task not found");
       return NotificationTask{};
     };
-    for (const auto& id : {"overdue", "expression", "old-start", "missing-deadline"}) {
+    for (const auto& id : {"anchored", "drifted", "old-start", "within-end"}) {
+      const auto task = find_task(state, id);
+      assert(task.enabled);
+      assert(task.next_run_at_ms == next_slot_ms);
+      assert(task.run_count == overdue.run_count);
+      assert(task.last_run_at_ms == overdue.last_run_at_ms);
+    }
+    for (const auto& id : {"overdue", "expression", "missing-deadline"}) {
       const auto task = find_task(state, id);
       const int64_t interval_ms = task.interval.mode == "expression" ? 35'000 : 1'800'000;
       assert(task.enabled);
@@ -167,14 +190,12 @@ int main() {
     }
 
     // Re-enabling also skips a stale deadline without consuming a run.
-    const int64_t before_enable = time_utils::NowMs();
     assert(engine.SetTaskEnabled("disabled", true));
-    const int64_t after_enable = time_utils::NowMs();
     const auto enabled = find_task(mini_json::Parse(engine.GetStateJson()), "disabled");
     assert(enabled.enabled);
-    assert(enabled.next_run_at_ms >= before_enable + 1'800'000);
-    assert(enabled.next_run_at_ms <= after_enable + 1'800'000);
+    assert(enabled.next_run_at_ms == next_slot_ms);
     assert(enabled.run_count == overdue.run_count);
+    assert(enabled.last_run_at_ms == overdue.last_run_at_ms);
 
     // Starting the actual scheduler must not publish any missed notification.
     engine.Start();
@@ -203,6 +224,25 @@ int main() {
     const auto fired = find_task(mini_json::Parse(engine.GetStateJson()), saved.id);
     assert(fired.run_count == 1);
     assert(!fired.enabled);
+
+    auto ticking = anchored;
+    ticking.id = "ticking";
+    ticking.interval.fixed_sec = 1800.125;
+    ticking.interval.start_at_ms = time_utils::NowMs() + 120;
+    const auto pending = TaskFromJson(mini_json::Parse(engine.UpsertTaskJson(mini_json::Dump(ToJson(ticking)))));
+    assert(pending.next_run_at_ms == ticking.interval.start_at_ms);
+    std::this_thread::sleep_for(250ms);
+    engine.Start();
+    const auto timeout = std::chrono::steady_clock::now() + 3s;
+    while (find_task(mini_json::Parse(engine.GetStateJson()), ticking.id).run_count == 0 &&
+           std::chrono::steady_clock::now() < timeout) {
+      std::this_thread::sleep_for(10ms);
+    }
+    engine.Stop();
+    const auto ticked = find_task(mini_json::Parse(engine.GetStateJson()), ticking.id);
+    assert(ticked.run_count == 1);
+    assert(ticked.last_run_at_ms > ticking.interval.start_at_ms);
+    assert(ticked.next_run_at_ms == ticking.interval.start_at_ms + 1'800'125);
 
     std::error_code ec;
     std::filesystem::remove(path, ec);

@@ -16,6 +16,21 @@ namespace {
 constexpr int kNotificationCardHeight = 104;
 constexpr int kNotificationStackOffset = 16;
 
+bool HasFixedStart(const IntervalConfig& interval) {
+  return interval.mode == "fixed" && interval.start_at_ms > 0;
+}
+
+int64_t IntervalDurationMs(double seconds) {
+  return std::llround(std::clamp(seconds, 0.1, 31'536'000.0) * 1000.0);
+}
+
+int64_t FixedSlotAtOrAfter(const IntervalConfig& interval, int64_t earliest_ms) {
+  if (earliest_ms <= interval.start_at_ms) return interval.start_at_ms;
+  const int64_t period_ms = IntervalDurationMs(interval.fixed_sec);
+  const int64_t remainder_ms = (earliest_ms - interval.start_at_ms) % period_ms;
+  return remainder_ms == 0 ? earliest_ms : earliest_ms + (period_ms - remainder_ms);
+}
+
 }  // namespace
 
 TaskEngine::TaskEngine(std::filesystem::path state_path) : state_path_(std::move(state_path)) {}
@@ -360,7 +375,9 @@ void TaskEngine::ResetNextRunLocked(NotificationTask& task, int64_t now_ms, bool
       }
     }
     if (!reset_runtime && task.enabled) {
-      if (task.next_run_at_ms < now_ms) {
+      if (HasFixedStart(task.interval)) {
+        task.next_run_at_ms = FixedSlotAtOrAfter(task.interval, now_ms);
+      } else if (task.next_run_at_ms < now_ms) {
         // Resume without replaying an overdue notification or consuming a run.
         task.next_run_at_ms = ComputeNextIntervalMsLocked(task, now_ms, task.last_run_at_ms);
       }
@@ -378,6 +395,7 @@ void TaskEngine::ResetNextRunLocked(NotificationTask& task, int64_t now_ms, bool
 
 int64_t TaskEngine::ComputeNextIntervalMsLocked(
     const NotificationTask& task, int64_t now_ms, int64_t previous_run_ms) const {
+  if (HasFixedStart(task.interval)) return FixedSlotAtOrAfter(task.interval, now_ms + 1);
   double seconds = task.interval.fixed_sec;
   if (task.interval.mode == "expression") {
     const double last_ms = previous_run_ms > 0 ? static_cast<double>(now_ms - previous_run_ms)
@@ -391,8 +409,7 @@ int64_t TaskEngine::ComputeNextIntervalMsLocked(
     if (evaluated && std::isfinite(*evaluated)) seconds = *evaluated;
     else seconds = 60.0;
   }
-  seconds = std::clamp(seconds, 0.1, 31'536'000.0);
-  return now_ms + static_cast<int64_t>(std::llround(seconds * 1000.0));
+  return now_ms + IntervalDurationMs(seconds);
 }
 
 std::string TaskEngine::NewIdLocked(const char* prefix, int64_t now_ms) {

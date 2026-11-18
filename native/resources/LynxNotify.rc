@@ -1,3 +1,28 @@
 #include "resource.h"
+#include "AppVersion.h"
+#include <winver.h>
 
 IDI_LYNX_NOTIFY ICON "LynxNotify.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION LYNX_NOTIFY_VERSION_PARTS
+ PRODUCTVERSION LYNX_NOTIFY_VERSION_PARTS
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "FileDescription", "Lynx Notify"
+      VALUE "FileVersion", LYNX_NOTIFY_VERSION
+      VALUE "ProductName", "Lynx Notify"
+      VALUE "ProductVersion", LYNX_NOTIFY_VERSION
+      VALUE "OriginalFilename", "LynxNotify.exe"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1200
+  END
+END

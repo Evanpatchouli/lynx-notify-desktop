@@ -1,5 +1,6 @@
-import type { AppState, CardSettings, NotificationTask, OverlayState } from './types';
+import type { AppState, CardSettings, NotificationTask, OverlayState, UpdateState } from './types';
 import { DEFAULT_SETTINGS } from './types';
+import manifest from '../package.json';
 
 function now() {
   return Date.now();
@@ -89,6 +90,29 @@ function native() {
 
 export const hostBridge = {
   isNative: hasNativeHost,
+
+  getUpdateState(): UpdateState {
+    if (hasNativeHost()) {
+      try {
+        const state = JSON.parse(native()!.getUpdateState()) as UpdateState;
+        if (state.currentVersion && state.status) return state;
+      } catch (error) {
+        console.error('NotifyHost.getUpdateState failed', error);
+      }
+    }
+    return {
+      currentVersion: manifest.version, status: 'error', latestVersion: '', checkedAtMs: 0,
+      message: hasNativeHost() ? '无法读取宿主更新状态' : '请在 Windows 桌面应用中检查更新',
+    };
+  },
+
+  checkForUpdates(): void {
+    if (hasNativeHost()) native()!.checkForUpdates();
+  },
+
+  openUpdatePage(): boolean {
+    return hasNativeHost() && native()!.openUpdatePage();
+  },
 
   getState(): AppState {
     if (hasNativeHost()) {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CardPosition, CardSettings, CardStyle } from '../../types';
 import { POSITION_OPTIONS } from '../constants';
+import UpdateSection from './UpdateSection.vue';
 
 const props = defineProps<{ settings: CardSettings }>();
 const emit = defineEmits<{
@@ -103,6 +104,7 @@ function adjustDuration(delta: number) {
         </view>
         <view class="secondary-button" @tap="emit('preview')"><text class="secondary-button-text">发送桌面预览</text></view>
       </view>
+      <UpdateSection />
       <view class="list-spacer"></view>
     </scroll-view>
   </view>

@@ -4,6 +4,7 @@
 
 #include "NativeLynxWindow.h"
 #include "TaskEngine.h"
+#include "UpdateChecker.h"
 
 #include <optional>
 #include <atomic>
@@ -16,7 +17,7 @@
 class AppController {
  public:
   AppController();
-  explicit AppController(std::filesystem::path state_path);
+  AppController(std::filesystem::path state_path, UpdateChecker::Fetch fetch_release);
   ~AppController();
 
   int Run(HINSTANCE instance, int show_command);
@@ -27,6 +28,9 @@ class AppController {
   bool DeleteTask(const std::string& id) { return engine_.DeleteTask(id); }
   bool SetTaskEnabled(const std::string& id, bool enabled) { return engine_.SetTaskEnabled(id, enabled); }
   bool UpdateSettingsJson(const std::string& json) { return engine_.UpdateSettingsJson(json); }
+  std::string GetUpdateStateJson() const;
+  void CheckForUpdates() { updates_.CheckNow(); }
+  bool OpenUpdatePage() const;
   bool PreviewNotificationJson(const std::string& json) { return engine_.PreviewNotificationJson(json); }
   bool DismissNotification(const std::string& id) { return engine_.DismissNotification(id); }
   void WindowCommand(const std::string& command);
@@ -40,6 +44,7 @@ class AppController {
   enum class WindowAction { Drag, Minimize, Hide, Quit, Show };
 
   TaskEngine engine_;
+  UpdateChecker updates_;
   NativeLynxWindow panel_;
   NativeLynxWindow overlay_;
   NOTIFYICONDATAW tray_{};

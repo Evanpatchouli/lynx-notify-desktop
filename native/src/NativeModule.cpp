@@ -65,6 +65,22 @@ napi_value GetOverlayState(napi_env env, napi_callback_info info) {
   return StringResult(env, call.app ? call.app->GetOverlayStateJson() : "{\"cards\":[]}");
 }
 
+napi_value GetUpdateState(napi_env env, napi_callback_info info) {
+  auto call = ReadCall(env, info, 0);
+  return StringResult(env, call.app ? call.app->GetUpdateStateJson() : "{}");
+}
+
+napi_value CheckForUpdates(napi_env env, napi_callback_info info) {
+  auto call = ReadCall(env, info, 0);
+  if (call.app) call.app->CheckForUpdates();
+  return Undefined(env);
+}
+
+napi_value OpenUpdatePage(napi_env env, napi_callback_info info) {
+  auto call = ReadCall(env, info, 0);
+  return BoolResult(env, call.app && call.app->OpenUpdatePage());
+}
+
 napi_value UpsertTask(napi_env env, napi_callback_info info) {
   auto call = ReadCall(env, info, 1);
   if (!call.app || call.argc < 1) return StringResult(env, "{}");
@@ -125,6 +141,9 @@ napi_value NotifyHostModuleCreator(
     void* opaque) {
   AddFunction(env, exports, "getState", GetState, opaque);
   AddFunction(env, exports, "getOverlayState", GetOverlayState, opaque);
+  AddFunction(env, exports, "getUpdateState", GetUpdateState, opaque);
+  AddFunction(env, exports, "checkForUpdates", CheckForUpdates, opaque);
+  AddFunction(env, exports, "openUpdatePage", OpenUpdatePage, opaque);
   AddFunction(env, exports, "upsertTask", UpsertTask, opaque);
   AddFunction(env, exports, "deleteTask", DeleteTask, opaque);
   AddFunction(env, exports, "setTaskEnabled", SetTaskEnabled, opaque);

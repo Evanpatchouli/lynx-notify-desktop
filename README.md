@@ -1,6 +1,6 @@
 # Lynx Notify
 
-一个 Windows 桌面定时通知应用原型：界面由 **Vue Lynx** 渲染，宿主由 **C++17 + Win32 + LynxSDK 4.0** 实现。
+一个 Windows 桌面定时通知应用：界面由 **Vue Lynx** 渲染，宿主由 **C++17 + Win32 + LynxSDK 4.0** 实现。[下载最新正式版](https://github.com/Evanpatchouli/lynx-notify-desktop/releases/latest)。
 
 通知不是 Windows 原生 Toast。宿主创建一个覆盖整个虚拟桌面的透明、置顶、无标题栏、非激活窗口，Vue Lynx 在其中渲染可堆叠的通知卡片；管理面板是另一个独立的竖向无标题栏窗口。
 
@@ -27,6 +27,7 @@
 - 面板隐藏后任务继续运行；系统托盘可重新打开或退出。
 - 空闲后台按需释放 Lynx 界面：面板隐藏 / 最小化后释放视图（正在编辑任务时保留草稿），通知覆盖层只在有卡片时创建，最后一张卡片消失后释放；Release 关闭 DevTool 和 LogBox。
 - 本地持久化到 `%LOCALAPPDATA%\LynxNotify\state.json`。
+- 设置底部显示版本并支持手动检查更新；每次启动及运行中每 15 分钟自动检查一次，托盘模式同样有效。
 - Web Preview mock：没有 Windows NativeModule 时，也能在浏览器查看和操作面板 UI；`overlay.web.bundle` 会展示堆叠卡片样例。
 - `AGENTS.md`：按 Lynx 面向 AI 的建议提供项目级 agent 上下文。
 
@@ -63,7 +64,8 @@ lynx-notify-desktop/
 │     └─ ...
 ├─ scripts/
 │  ├─ setup-lynx-sdk.ps1
-│  └─ build.ps1
+│  ├─ build.ps1                # 本地开发构建
+│  └─ release.ps1              # 测试、安装包、便携包、校验清单
 ├─ tests/
 │  └─ core_tests.cpp
 ├─ docs/architecture.md
@@ -73,12 +75,12 @@ lynx-notify-desktop/
 ## 环境要求
 
 - Windows 10/11 x64（建议 Windows 11）。
-- Node.js 18.19+。
+- Node.js 和 npm、PowerShell 7.3+。
 - Visual Studio 2022，安装 **Desktop development with C++** 工作负载。
 - CMake 3.24+。
 - 官方 Windows **LynxSDK 4.0.0**。
 
-> LynxSDK 二进制没有打进本仓库，请按官方 Windows integration 文档下载或自行构建。
+> 如果检出目录缺少 SDK，请按下文安装。制作生产安装包另需 NSIS 3。
 
 ## 1. 前端开发 / Web Preview
 
@@ -131,14 +133,13 @@ native\thirdparty\lynx\
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1
 ```
 
-默认构建 Release；完成后通常位于：
+默认构建本地 Release；完成后位于：
 
 ```text
 output\Release\LynxNotify.exe
-output\LynxNotify-<version>.zip
 ```
 
-脚本会先执行 Vue Lynx production build，再通过 CMake 构建 Win32 host，把 `.lynx.bundle`、`lynx.dll`、`data` 和 Lynx core 文件复制到 exe 目录，最后将整个 Release 运行目录压缩为版本包。版本号读取自 `frontend/package.json`。
+本地脚本先按锁文件安装依赖，构建 Vue Lynx bundle，再通过 CMake 构建 Win32 host。**发布请在根目录运行 `npm run release`**：脚本在独立目录构建并测试，输出 `release/<版本号>/` 下的 Setup、便携 ZIP 和校验清单，不会覆盖正在运行的开发版本。详见[构建和发布流程](docs/release.md)。
 
 如已经执行过 `npm install`：
 
@@ -169,7 +170,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -SkipNpmInstal
 - 设置 `startAtMs`：从指定时刻开始；
 - 未设置：保存任务时即开始。
 
-之后每次发布完成后计算下一次间隔。应用启动或重新启用任务时，跳过已经逾期的循环通知，从恢复时刻加上一个间隔作为下次触发时间，不立即补发，也不增加执行次数；尚未到期的触发时间保持不变。恢复后的下次触发时间若超过结束时间，任务会停用。
+设置了起始时间的固定间隔任务，重启或重新启用时按「起始时间 + 整数倍间隔」选择当前时刻或之后的第一个计划时刻，不补发错过的通知，也不扣减剩余次数。例如从 `11:58` 起每 30 分钟提醒，即使隔几天后在 `15:48` 打开，下次仍是 `15:58`，之后是 `16:28`。
+
+未设置起始时间的固定间隔任务，以及自定义间隔函数任务，仍保留尚未到期的触发时间；若已逾期，则从恢复时刻重新计算一个间隔，不补发也不计次。下次触发时间若超过结束时间，任务会停用。
 
 ### 自定义间隔函数
 
@@ -272,7 +275,7 @@ cmake --build native/build --config Release --target LynxNotify LynxNotifyLifecy
 
 ## 当前边界
 
-这是一个可继续开发的 MVP 源码，而不是已经签名分发的安装包。当前环境不是 Windows，且源码包不包含 LynxSDK 二进制，所以这里无法替你实际链接出 `LynxNotify.exe`；Windows 专属部分遵循官方 CMake / `LynxEnv` / `LynxView::Builder` / `LoadTemplate` 的集成形态，并提供了 PowerShell 构建脚本。
+目前分发 Windows x64 未签名安装包和便携 ZIP。检查更新只查询正式 Release；下载和安装均由用户决定。
 
 多显示器目前采用“一张覆盖整个虚拟桌面的 Overlay”。如果不同显示器 DPI 差异很大，下一步建议升级为每显示器一个透明 Overlay HWND，但对前端仍保持同一个通知队列抽象。
 

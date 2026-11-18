@@ -1,0 +1,8 @@
+{
+  "name": "lynx-notify-desktop",
+  "private": true,
+  "scripts": {
+    "release": "pwsh -NoProfile -File scripts/release.ps1",
+    "dist:win": "npm run release"
+  }
+}

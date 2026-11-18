@@ -33,7 +33,9 @@ Task kinds:
 - `interval`: fixed seconds or a safe arithmetic expression returning seconds. Optional start time, end time, and max run count. The first stop condition reached wins.
 - `schedule`: daily or selected weekdays at a clock time.
 
-On startup or re-enabling an interval task, an overdue notification is skipped. Its next deadline is the resume time plus the computed interval; `runCount` and `lastRunAtMs` remain unchanged. Future deadlines are preserved, and the end time / run limit still apply.
+For a fixed interval with `startAtMs`, deadlines are `startAtMs + n × interval` (`n ≥ 0`). Loading or re-enabling the task selects the first slot at or after the current time, even if an older version saved an off-cadence deadline. After a notification fires, the next slot is strictly after the actual firing time, so late ticks do not shift the schedule.
+
+Fixed intervals without a start time and expression intervals keep future deadlines and reschedule overdue ones from the resume time. In all cases, skipping overdue slots does not change `runCount` or `lastRunAtMs`; end times and run limits still apply.
 
 ## Variables
 
@@ -60,6 +62,10 @@ Examples:
 - `60`
 - `max(10, 60 - run * 5)`
 - `clamp(last / 1000 * 1.2, 10, 300)`
+
+## Update checks
+
+Update checks run in a separate native worker, not in the task scheduler or a Lynx view. It checks the repository's latest stable GitHub Release once at startup and every 15 minutes using a steady clock. Manual requests share the worker and coalesce with in-flight requests. The settings view only polls its local status; unmounting the view does not stop checks. A newly discovered version can create one notification per version per session. The user opens a fixed HTTPS release page to download; checks never execute remote content.
 
 ## Persistence
 
